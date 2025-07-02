@@ -12,15 +12,49 @@ import subprocess
 from packaging import version
 from ctypes import windll
 import psutil
+from PIL import Image, ImageTk
+from PIL.Image import Resampling
+from io import BytesIO
+
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS
-    ffmpeg_dir = os.path.join(BASE_DIR, 'ffmpeg')
+    ffmpeg_dir = os.path.join(BASE_DIR, 'ffmpeg', 'bin')
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    ffmpeg_dir = os.path.join(BASE_DIR, 'ffmpeg')
+    ffmpeg_dir = os.path.join(BASE_DIR, 'ffmpeg', 'bin')
+
+ffmpeg_path = os.path.join(ffmpeg_dir, 'ffmpeg.exe')
+if not os.path.isfile(ffmpeg_path):
+    messagebox.showerror("FFmpeg Missing", f"Не найден ffmpeg.exe по пути:\n{ffmpeg_path}")
+    sys.exit(1)
 
 os.environ['PATH'] = ffmpeg_dir + os.pathsep + os.environ['PATH']
+
+
+def center_window(window):
+    window.update_idletasks()
+    width = window.winfo_width()
+    height = window.winfo_height()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+
+    x = (screen_width // 2) - (width * 2)
+    y = (screen_height // 2) - (height * 2)
+
+    window.geometry(f'+{x}+{y}')
+
+def center_window_preview(window):
+    window.update_idletasks()
+    width = window.winfo_width()
+    height = window.winfo_height()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+
+    x = (screen_width // 2) - (width // 2)
+    y = (screen_height // 2) - (height // 2)
+
+    window.geometry(f'+{x}+{y}')
 
 def optimize_process_priority():
     try:
@@ -52,6 +86,7 @@ def update_yt_dlp():
 
 root = tk.Tk()
 root.withdraw()
+center_window(root)
 
 class YTDLPLogger:
     def __init__(self, log_callback):
@@ -199,6 +234,13 @@ main_frame = tk.Frame(root, bg="#0b1a2f")
 search_frame = tk.Frame(root, bg="#0b1a2f")
 advanced_frame = tk.Frame(root, bg="#0b1a2f")
 history_frame = tk.Frame(root, bg="#0b1a2f")
+tools_frame = tk.Frame(root, bg="#0b1a2f")
+tools_convert_frame = tk.Frame(root, bg="#0b1a2f")
+tools_trim_frame = tk.Frame(root, bg="#0b1a2f")
+tools_merge_frame = tk.Frame(root, bg="#0b1a2f")
+
+for f in (tools_frame, tools_convert_frame, tools_trim_frame, tools_merge_frame):
+    f.place(relwidth=1, relheight=1)
 
 for frame in (main_frame, search_frame, advanced_frame, history_frame):
     frame.place(relwidth=1, relheight=1)
@@ -258,6 +300,127 @@ def update_progress(data):
 def on_download_complete():
     complete_label.place(relx=0.5, rely=0.96, anchor="s")
     root.after(3000, lambda: complete_label.place_forget())
+
+
+def preview_video():
+    url = url_entry.get().strip()
+    if not url:
+        messagebox.showerror("Error", "Please enter a video URL to preview")
+        return
+
+    # Создаем новое окно для превью
+    preview_window = tk.Toplevel(root)
+    preview_window.title("Video Preview")
+    preview_window.geometry("400x500")
+    preview_window.resizable(False, False)
+    preview_window.configure(bg="#0b1a2f")
+    center_window_preview(preview_window)
+
+    # Виджеты для нового окна
+    thumbnail_label = tk.Label(preview_window, bg="#0b1a2f")
+    thumbnail_label.pack(pady=10)
+
+    video_info_label = tk.Label(
+        preview_window,
+        bg="#0b1a2f",
+        fg="white",
+        font=("Segoe UI", 10),
+        justify="left",
+        wraplength=380
+    )
+    video_info_label.pack(pady=5, padx=10, fill="x")
+
+    loading_label = tk.Label(
+        preview_window,
+        text="🔄 Loading video info...",
+        bg="#0b1a2f",
+        fg="white",
+        font=("Segoe UI", 10)
+    )
+    loading_label.pack(pady=10)
+
+    def update_ui(info_text, image=None):
+        loading_label.pack_forget()
+        if image:
+            thumbnail_label.config(image=image)
+            thumbnail_label.image = image
+        video_info_label.config(text=info_text)
+
+    def fetch_info():
+        try:
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': False,
+                'force_generic_extractor': True,
+                'socket_timeout': 10,
+                'extractor_args': {
+                    'youtube': {
+                        'skip': ['dash', 'hls'],
+                        'player_client': ['android']
+                    }
+                }
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            if not info:
+                preview_window.after(0, lambda: update_ui("❌ Failed to get video info"))
+                return
+
+            # Формируем информацию о видео
+            title = info.get('title', 'Unknown title')
+            uploader = info.get('uploader', 'Unknown author')
+            duration = info.get('duration', 0)
+            duration_str = time.strftime("%H:%M:%S", time.gmtime(duration)) if duration else "Live stream"
+
+            info_text = f"🎬 Title: {title}\n👤 Author: {uploader}\n⏱ Duration: {duration_str}"
+
+            # Пробуем получить миниатюру
+            thumbnail_url = None
+            if 'thumbnail' in info:
+                thumbnail_url = info['thumbnail']
+            elif 'thumbnails' in info and info['thumbnails']:
+                thumbnail_url = info['thumbnails'][-1]['url']
+
+            if thumbnail_url:
+                try:
+                    response = requests.get(thumbnail_url, timeout=10)
+                    if response.status_code == 200:
+                        img = Image.open(BytesIO(response.content))
+                        img = img.resize((380, 220), Resampling.LANCZOS)
+                        photo = ImageTk.PhotoImage(img)
+                        preview_window.after(0, lambda: update_ui(info_text, photo))
+                        return
+                except Exception as e:
+                    print(f"Thumbnail error: {e}")
+
+            # Если миниатюра не загрузилась, показываем только информацию
+            preview_window.after(0, lambda: update_ui(info_text))
+
+        except yt_dlp.utils.DownloadError as e:
+            preview_window.after(0, lambda: update_ui(f"❌ Download Error: {str(e)}"))
+        except Exception as e:
+            preview_window.after(0, lambda: update_ui(f"❌ Unexpected error: {str(e)}"))
+
+    # Запускаем в отдельном потоке
+    threading.Thread(target=fetch_info, daemon=True).start()
+
+    # Кнопка закрытия
+    close_button = tk.Button(
+        preview_window,
+        text="Close Preview",
+        command=preview_window.destroy,
+        bg="#1e3c60",
+        fg="white",
+        relief="flat",
+        font=("Segoe UI", 10)
+    )
+    close_button.pack(pady=10, ipadx=20, ipady=5)
+
+
+
 
 def start_download():
     global last_update_time, last_downloaded
@@ -326,6 +489,9 @@ tk.Button(button_frame, text="🔍",
           bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 11),
           width=3).pack(side=tk.LEFT, padx=(10, 0))
 
+tk.Button(button_frame, text="🎬 Tools", command=lambda: show_frame(tools_frame),
+          bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 11)).pack(side=tk.LEFT, padx=(10, 0))
+
 form_frame = tk.Frame(main_frame, bg="#0b1a2f")
 form_frame.pack(padx=20, pady=10, anchor="w", fill="x")
 
@@ -340,6 +506,10 @@ add_form_row.row = 0
 
 url_entry = tk.Entry(form_frame, **entry_style)
 add_form_row(form_frame, "🔗 Video URL:", url_entry)
+
+tk.Button(form_frame, text="Preview", command=preview_video,
+          bg="#1e6aa6", fg="white", relief="flat").grid(row=add_form_row.row, column=1, sticky="ew", pady=5)
+add_form_row.row += 1
 
 format_var = tk.StringVar(value="mp4")
 format_entry = tk.Entry(form_frame, textvariable=format_var, **entry_style)
@@ -396,6 +566,12 @@ style.configure("TProgressbar", thickness=12, troughcolor="#1a2e45", background=
                 relief="flat")
 progress_bar.pack(padx=20, pady=(0, 5), fill="x")
 
+thumbnail_label = tk.Label(main_frame, bg="#0b1a2f")
+thumbnail_label.pack(padx=20, pady=(5, 0))
+
+video_info_label = tk.Label(main_frame, text="", bg="#0b1a2f", fg="white", font=("Segoe UI", 10), justify="left")
+video_info_label.pack(padx=20, pady=(3, 5), anchor="w")
+
 progress_frame = tk.Frame(main_frame, bg="#0b1a2f")
 progress_frame.pack(padx=20, pady=(0, 10), fill="x")
 
@@ -420,7 +596,7 @@ tk.Label(
     font=("Segoe UI", 12, "bold"),
     anchor="w",
     justify="left"
-).pack(padx=30, pady=(20, 10), fill="x")
+).pack(padx=30, pady=(20, 10), fill="x", anchor="w")
 
 advanced_form_frame = tk.Frame(advanced_frame_inner, bg="#0b1a2f")
 advanced_form_frame.pack(padx=20, pady=10, anchor="w", fill="x")
@@ -436,24 +612,24 @@ add_advanced_row.row = 0
 
 advanced_frame.playlist_var = tk.BooleanVar()
 playlist_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.playlist_var, bg="#0b1a2f",
-                                activebackground="#0b1a2f")
+                                 activebackground="#0b1a2f")
 add_advanced_row(advanced_form_frame, "📋 Download entire playlist:", playlist_check)
 
 advanced_frame.subtitles_var = tk.BooleanVar()
 subtitles_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.subtitles_var, bg="#0b1a2f",
-                                 activebackground="#0b1a2f")
+                                   activebackground="#0b1a2f")
 add_advanced_row(advanced_form_frame, "📝 Download subtitles:", subtitles_check)
 
 advanced_frame.subtitle_format_var = tk.StringVar(value="srt")
 subtitle_format_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.subtitle_format_var, "srt", "vtt", "ass",
-                                     "lrc")
+                                      "lrc")
 subtitle_format_menu.config(bg="#1b2b45", fg="white", relief="flat", highlightthickness=0)
 subtitle_format_menu['menu'].config(bg="#1b2b45", fg="white")
 add_advanced_row(advanced_form_frame, "📄 Subtitle format:", subtitle_format_menu)
 
 advanced_frame.metadata_var = tk.BooleanVar()
 metadata_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.metadata_var, bg="#0b1a2f",
-                                activebackground="#0b1a2f")
+                                 activebackground="#0b1a2f")
 add_advanced_row(advanced_form_frame, "📊 Download metadata (description, tags, etc.):", metadata_check)
 
 advanced_frame.audio_quality_var = tk.StringVar(value="192")
@@ -478,16 +654,24 @@ search_input = tk.StringVar()
 search_results = tk.StringVar()
 
 def search_sites():
+    query = search_input.get().strip()
+    if not query:
+        search_results.set("Please enter a search query.")
+        return
+
     try:
         url = "https://raw.githubusercontent.com/thatsmeee/video-loader/main/allowed-list.md"
         response = requests.get(url)
+        response.raise_for_status() # Raise an exception for bad status codes
         lines = response.text.splitlines()
-        query = search_input.get().lower()
-        matches = [line for line in lines if query in line.lower()]
+        query_lower = query.lower()
+        matches = [line for line in lines if query_lower in line.lower()]
         result_text = "\n".join(matches) if matches else "No results found."
         search_results.set(result_text)
+    except requests.exceptions.RequestException as e:
+        search_results.set(f"Error fetching data: {e}. Please check your internet connection.")
     except Exception as e:
-        search_results.set(f"Error: {e}")
+        search_results.set(f"An unexpected error occurred: {e}")
 
 search_frame_inner = tk.Frame(search_frame, bg="#0b1a2f")
 search_frame_inner.place(relwidth=1, relheight=1)
@@ -501,7 +685,7 @@ tk.Label(
     font=("Segoe UI", 10, "bold"),
     anchor="w",
     justify="left"
-).pack(padx=30, pady=(20, 10), fill="x")
+).pack(padx=30, pady=(20, 10), fill="x", anchor="w")
 
 search_entry = tk.Entry(search_frame_inner, textvariable=search_input, **entry_style)
 search_entry.pack(padx=30, pady=(0, 10), fill="x")
@@ -513,14 +697,144 @@ tk.Button(search_frame_inner, text="🔎 Search", command=search_sites,
 tk.Label(search_frame_inner, text="📄 Results:", **label_style).pack(anchor="w", padx=30, pady=(0, 5))
 
 search_output = tk.Message(search_frame_inner, textvariable=search_results,
-                           bg="#11213a", fg="#cceeff", width=640,
-                           font=("Consolas", 9))
+                            bg="#11213a", fg="#cceeff", width=640,
+                            font=("Consolas", 9))
 search_output.pack(padx=30, pady=(0, 20), fill="both", expand=True)
 
 tk.Button(search_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
           bg="#1e3c60", fg="white", relief="flat",
           font=("Segoe UI", 10)).pack(padx=30, pady=(0, 30), fill="x")
 
+tk.Label(tools_frame,
+    text="🎬 Tools",
+    bg="#0b1a2f",
+    fg="white",
+    justify="left",
+    font=("Segoe UI", 14, "bold"),
+    anchor="w"
+).pack(pady=(30, 20), padx=30, anchor="w")
+
+tk.Button(tools_frame, text="🎞 Media Converter", command=lambda: show_frame(tools_convert_frame),
+    bg="#1e6aa6", fg="white", relief="flat", font=("Segoe UI", 11)).pack(padx=40, pady=10, fill="x")
+
+tk.Button(tools_frame, text="✂️ Video trim (without recoding)", command=lambda: show_frame(tools_trim_frame),
+    bg="#1e6aa6", fg="white", relief="flat", font=("Segoe UI", 11)).pack(padx=40, pady=10, fill="x")
+
+tk.Button(tools_frame, text="⬅️ Back", command=lambda: show_frame(main_frame),
+    bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 11)).pack(padx=40, pady=10, fill="x")
+
+tk.Label(tools_convert_frame,
+    text="🎞 Media Converter",
+    bg="#0b1a2f",
+    fg="white",
+    font=("Segoe UI", 14, "bold"),
+    anchor="w",
+    justify="left"
+).pack(pady=20, padx=30, anchor="w")
+
+tk.Label(tools_convert_frame, text="Enter output format (e.g., mp4, mkv, avi):", bg="#0b1a2f", fg="white", font=("Segoe UI", 10)).pack(padx=40, anchor="w")
+convert_format_var = tk.StringVar(value="mp4")
+tk.Entry(tools_convert_frame, textvariable=convert_format_var, **entry_style).pack(padx=40, pady=5, fill="x")
+
+def convert_video():
+    infile = filedialog.askopenfilename(title="Select video")
+    if not infile:
+        return
+
+    fmt = convert_format_var.get().strip().lower()
+    if not fmt:
+        messagebox.showerror("Format Error", "Please enter a valid output format (e.g., mp4, mkv).")
+        return
+
+    base_filename = os.path.splitext(os.path.basename(infile))[0]
+    default_outfile = os.path.join(os.path.dirname(infile), f"{base_filename}.{fmt}")
+
+    outfile = filedialog.asksaveasfilename(
+        title="Save converted video as",
+        defaultextension=f".{fmt}",
+        initialfile=f"{base_filename}.{fmt}",
+        filetypes=[(f"{fmt.upper()} files", f"*.{fmt}"), ("All files", "*.*")]
+    )
+
+    if not outfile:
+        return
+
+    threading.Thread(target=lambda: subprocess.run([
+        ffmpeg_path, '-y', '-i', infile, outfile
+    ], check=True)).start()
+
+tk.Button(tools_convert_frame, text="🔄 Convert video", command=convert_video,
+    bg="#1e6aa6", fg="white", relief="flat", font=("Segoe UI", 11)).pack(padx=40, pady=10, fill="x")
+
+tk.Button(tools_convert_frame, text="⬅️ Back", command=lambda: show_frame(tools_frame),
+    bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 10)).pack(padx=40, pady=(30, 0), fill="x")
+
+tk.Label(tools_trim_frame,
+    text="✂ Video trimming",
+    bg="#0b1a2f",
+    fg="white",
+    font=("Segoe UI", 14, "bold"),
+    anchor="w",
+    justify="left"
+).pack(pady=20, padx=30, anchor="w")
+
+tk.Label(tools_trim_frame, text="Start time (format HH:MM:SS or seconds):", bg="#0b1a2f", fg="white", font=("Segoe UI", 10)).pack(padx=40, anchor="w")
+trim_start_var = tk.StringVar()
+tk.Entry(tools_trim_frame, textvariable=trim_start_var, **entry_style).pack(padx=40, pady=5, fill="x")
+
+tk.Label(tools_trim_frame, text="End time (format HH:MM:SS or seconds):", bg="#0b1a2f", fg="white", font=("Segoe UI", 10)).pack(padx=40, anchor="w")
+trim_end_var = tk.StringVar()
+tk.Entry(tools_trim_frame, textvariable=trim_end_var, **entry_style).pack(padx=40, pady=5, fill="x")
+
+def trim_video():
+    infile = filedialog.askopenfilename(title="Select video")
+    if not infile:
+        return
+
+    fmt = convert_format_var.get().strip().lower() or "mp4"
+    base_filename = os.path.splitext(os.path.basename(infile))[0]
+    default_outfile = os.path.join(os.path.dirname(infile), f"{base_filename}_trimmed.{fmt}")
+
+    outfile = filedialog.asksaveasfilename(
+        title="Save trimmed video as",
+        defaultextension=f".{fmt}",
+        initialfile=f"{base_filename}_trimmed.{fmt}",
+        filetypes=[(f"{fmt.upper()} files", f"*.{fmt}"), ("All files", "*.*")]
+    )
+    if not outfile:
+        return
+
+    start = trim_start_var.get().strip()
+    end = trim_end_var.get().strip()
+
+    if not start or not end:
+        messagebox.showerror("Error", "Please specify both start and end time.")
+        return
+
+    threading.Thread(target=lambda: subprocess.run([
+        ffmpeg_path, '-y', '-ss', start, '-to', end, '-i', infile, '-c', 'copy', outfile
+    ], check=True)).start()
+
+tk.Button(tools_trim_frame, text="✂️ Trim", command=trim_video,
+    bg="#1e6aa6", fg="white", relief="flat", font=("Segoe UI", 11)).pack(padx=40, pady=10, fill="x")
+
+tk.Button(tools_trim_frame, text="⬅️ Back", command=lambda: show_frame(tools_frame),
+    bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 10)).pack(padx=40, pady=(30, 0), fill="x")
+
+tk.Label(tools_merge_frame,
+    text="🔀 Video Merger",
+    bg="#0b1a2f",
+    fg="white",
+    font=("Segoe UI", 14, "bold"),
+    anchor="w",
+    justify="left"
+).pack(pady=20, padx=30, anchor="w")
+
+tk.Label(tools_merge_frame, text="This feature will be available in the next version",
+         bg="#0b1a2f", fg="white", font=("Segoe UI", 10)).pack(padx=40, pady=20)
+
+tk.Button(tools_merge_frame, text="⬅️ Back", command=lambda: show_frame(tools_frame),
+    bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 10)).pack(padx=40, pady=(30, 0), fill="x")
+
 show_frame(main_frame)
 root.mainloop()
-
