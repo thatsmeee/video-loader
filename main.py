@@ -523,3 +523,4 @@ tk.Button(search_frame_inner, text="⬅️ Back to main", command=lambda: show_f
 
 show_frame(main_frame)
 root.mainloop()
+
