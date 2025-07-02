@@ -1,40 +1,74 @@
 import yt_dlp
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, simpledialog
 import threading
 import os
 import requests
 from tkinter import ttk
 import sys
 import platform
-import json
+import time
+import subprocess
+from packaging import version
+from ctypes import windll
+import psutil
 
 if getattr(sys, 'frozen', False):
-    ffmpeg_dir = os.path.join(sys._MEIPASS, 'ffmpeg')
+    BASE_DIR = sys._MEIPASS
+    ffmpeg_dir = os.path.join(BASE_DIR, 'ffmpeg')
 else:
-    ffmpeg_dir = os.path.join(os.path.dirname(__file__), 'ffmpeg')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    ffmpeg_dir = os.path.join(BASE_DIR, 'ffmpeg')
 
 os.environ['PATH'] = ffmpeg_dir + os.pathsep + os.environ['PATH']
 
-if platform.system() == "Windows":
-    import psutil
-    p = psutil.Process(os.getpid())
-    p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
-else:
-    os.nice(10)
+def optimize_process_priority():
+    try:
+        if platform.system() == "Windows":
+            p = psutil.Process(os.getpid())
+            p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+            windll.kernel32.SetPriorityClass(p.pid, 0x00004000)
+        else:
+            os.nice(10)
+            os.system("renice -n 10 -p $$")
+    except Exception:
+        pass
+
+optimize_process_priority()
+
+def update_yt_dlp():
+    try:
+        current_version = version.parse(yt_dlp.version.__version__)
+        latest_version = version.parse(subprocess.check_output(
+            [sys.executable, "-m", "yt_dlp", "--version"],
+            stderr=subprocess.PIPE, text=True).strip())
+
+        if latest_version > current_version:
+            subprocess.run([sys.executable, "-m", "pip", "--disable-pip-version-check", "install", "--upgrade", "yt-dlp"],
+                           check=True, capture_output=True)
+            return True
+    except Exception as e:
+        return False
+
+root = tk.Tk()
+root.withdraw()
 
 class YTDLPLogger:
     def __init__(self, log_callback):
         self.log_callback = log_callback
+        self._lock = threading.Lock()
 
     def debug(self, msg):
-        self.log_callback(msg)
+        with self._lock:
+            root.after(0, self.log_callback, msg)
 
     def warning(self, msg):
-        self.log_callback("⚠️ " + msg)
+        with self._lock:
+            root.after(0, self.log_callback, f"⚠️ {msg}")
 
     def error(self, msg):
-        self.log_callback("❌ " + msg)
+        with self._lock:
+            root.after(0, self.log_callback, f"❌ {msg}")
 
 def download_thread(url, media_type, quality, codec, save_path, threads, log_callback,
                     progress_callback, done_callback, advanced_options=None):
@@ -42,13 +76,14 @@ def download_thread(url, media_type, quality, codec, save_path, threads, log_cal
         if not advanced_options:
             advanced_options = {}
 
+        postprocessors = []
         if media_type in ['mp3', 'ogg', 'wav', 'm4a']:
             ydl_format = 'bestaudio'
-            postprocessors = [{
+            postprocessors.append({
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': media_type,
                 'preferredquality': advanced_options.get('audio_quality', '192'),
-            }]
+            })
         elif media_type in ['mp4', 'webm', 'mkv']:
             if quality == 'best':
                 ydl_format = 'best'
@@ -56,13 +91,10 @@ def download_thread(url, media_type, quality, codec, save_path, threads, log_cal
                 ydl_format = f'bestvideo[height<={quality}]+bestaudio/best[height<={quality}]'
             else:
                 ydl_format = 'best'
-            postprocessors = [{
+            postprocessors.append({
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': media_type,
-            }]
-        else:
-            log_callback(f"Unsupported format: {media_type}")
-            return
+            })
 
         ydl_opts = {
             'format': ydl_format,
@@ -71,9 +103,49 @@ def download_thread(url, media_type, quality, codec, save_path, threads, log_cal
             'postprocessors': postprocessors,
             'quiet': True,
             'logger': YTDLPLogger(log_callback),
-            'progress_hooks': [lambda d: progress_callback(d)],
-            'postprocessor_args': ['-threads', str(threads)]
+            'progress_hooks': [lambda d: root.after(0, progress_callback, d)],
+            'postprocessor_args': ['-threads', str(threads)],
+            'concurrent_fragment_downloads': 8,
+            'http_chunk_size': 1048576,
+            'retries': 10,
+            'fragment_retries': 10,
+            'extractor_args': {
+                'youtube': {
+                    'player_skip': ['js'],
+                    'player_client': ['android']
+                }
+            }
         }
+
+        if advanced_options.get('time_range'):
+            start_time, end_time = advanced_options['time_range']
+
+            def time_to_seconds(t):
+                if isinstance(t, str):
+                    if ':' in t:
+                        parts = list(map(int, t.split(':')))
+                        if len(parts) == 3:
+                            return parts[0] * 3600 + parts[1] * 60 + parts[2]
+                        elif len(parts) == 2:
+                            return parts[0] * 60 + parts[1]
+                    return int(t) if t.isdigit() else 0
+                return t
+
+            start_sec = time_to_seconds(start_time)
+            end_sec = time_to_seconds(end_time)
+
+            ydl_opts.update({
+                    'download_ranges': lambda info, ctx: [{
+                    'start_time': start_sec,
+                    'end_time': end_sec,
+                    'title': 'Clip'
+                }],
+                'force_keyframes_at_cuts': True,
+                'postprocessor_args': ydl_opts.get('postprocessor_args', []) + [
+                    '-ss', str(start_sec),
+                    '-to', str(end_sec)
+                ]
+            })
 
         if advanced_options.get('subtitles'):
             ydl_opts['writesubtitles'] = True
@@ -96,13 +168,18 @@ def download_thread(url, media_type, quality, codec, save_path, threads, log_cal
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        done_callback()
-        log_callback("✅ Download complete!")
+        root.after(0, done_callback)
+        root.after(0, log_callback, "✅ Download complete!")
 
     except Exception as e:
-        log_callback(f"❌ Error: {e}")
+        root.after(0, log_callback, f"❌ Error: {str(e)}")
 
-root = tk.Tk()
+if not getattr(sys, 'frozen', False):
+    update_thread = threading.Thread(target=update_yt_dlp, daemon=True)
+    update_thread.start()
+
+
+root.deiconify()
 root.title("Enhanced YouTube Downloader")
 script_dir = os.path.dirname(os.path.abspath(__file__))
 icon_path = os.path.join(script_dir, "footage.ico")
@@ -112,7 +189,7 @@ if os.path.exists(icon_path):
     except Exception as e:
         print(f"⚠️ Failed to set icon: {e}")
 
-root.geometry("700x660")
+root.geometry("750x750")
 root.configure(bg="#0b1a2f")
 root.resizable(False, False)
 
@@ -121,8 +198,9 @@ save_path = tk.StringVar(value=os.getcwd())
 main_frame = tk.Frame(root, bg="#0b1a2f")
 search_frame = tk.Frame(root, bg="#0b1a2f")
 advanced_frame = tk.Frame(root, bg="#0b1a2f")
+history_frame = tk.Frame(root, bg="#0b1a2f")
 
-for frame in (main_frame, search_frame, advanced_frame):
+for frame in (main_frame, search_frame, advanced_frame, history_frame):
     frame.place(relwidth=1, relheight=1)
 
 def show_frame(f):
@@ -139,21 +217,53 @@ def log_to_output(msg):
     output_text.see(tk.END)
     output_text.config(state=tk.DISABLED)
 
+def format_speed(speed):
+    if speed is None:
+        return "N/A"
+    speed = float(speed)
+    if speed > 1024 * 1024:
+        return f"{speed / (1024 * 1024):.2f} MB/s"
+    elif speed > 1024:
+        return f"{speed / 1024:.2f} KB/s"
+    else:
+        return f"{speed:.2f} B/s"
+
+last_update_time = 0
+last_downloaded = 0
+
 def update_progress(data):
+    global last_update_time, last_downloaded
+
     if data.get('status') == 'downloading':
-        total = data.get('total_bytes') or data.get('total_bytes_estimate')
+        current_time = time.time()
+        elapsed = current_time - last_update_time if last_update_time and (current_time - last_update_time) > 0.001 else 0.001
         downloaded = data.get('downloaded_bytes', 0)
+        total = data.get('total_bytes') or data.get('total_bytes_estimate')
+
         if total:
             percent = int(downloaded / total * 100)
             progress_var.set(percent)
+            speed = (downloaded - last_downloaded) / elapsed if last_downloaded and elapsed > 0 else 0
+            speed_label.config(text=f"Speed: {format_speed(speed)}")
+            progress_label.config(text=f"{percent}%")
+
+        last_update_time = current_time
+        last_downloaded = downloaded
+
     elif data.get('status') == 'finished':
         progress_var.set(100)
+        speed_label.config(text="Speed: Completed")
+        progress_label.config(text="100%")
 
 def on_download_complete():
     complete_label.place(relx=0.5, rely=0.96, anchor="s")
     root.after(3000, lambda: complete_label.place_forget())
 
 def start_download():
+    global last_update_time, last_downloaded
+    last_update_time = 0
+    last_downloaded = 0
+
     url = url_entry.get().strip()
     media_type = format_var.get().strip()
     quality = quality_entry.get().strip()
@@ -172,6 +282,14 @@ def start_download():
         advanced_options['metadata'] = advanced_frame.metadata_var.get()
     if hasattr(advanced_frame, 'audio_quality_var'):
         advanced_options['audio_quality'] = advanced_frame.audio_quality_var.get()
+    if hasattr(advanced_frame, 'time_start_var') and hasattr(advanced_frame, 'time_end_var'):
+        start = advanced_frame.time_start_var.get()
+        end = advanced_frame.time_end_var.get()
+        if start and end:
+            advanced_options['time_range'] = (start, end)
+        elif start or end:
+            log_to_output("⚠️ Choose start and end of the video")
+            return
 
     if not url or not media_type or not folder:
         messagebox.showerror("Error", "Please fill all required fields and select a folder.")
@@ -181,11 +299,14 @@ def start_download():
     output_text.delete(1.0, tk.END)
     output_text.config(state=tk.DISABLED)
     progress_var.set(0)
+    speed_label.config(text="Speed: -")
+    progress_label.config(text="0%")
 
     threading.Thread(
         target=download_thread,
         args=(url, media_type, quality, codec, folder, threads, log_to_output,
-              update_progress, on_download_complete, advanced_options)
+              update_progress, on_download_complete, advanced_options),
+        daemon=True
     ).start()
 
 label_style = {"bg": "#0b1a2f", "fg": "#ffffff", "font": ("Segoe UI", 10)}
@@ -198,7 +319,7 @@ button_frame.pack(padx=20, pady=(15, 10), fill="x", expand=True)
 tk.Button(button_frame, text="⚙️ Advanced options",
           command=lambda: show_frame(advanced_frame),
           bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 11)
-         ).pack(side=tk.LEFT, expand=True, fill="x")
+          ).pack(side=tk.LEFT, expand=True, fill="x")
 
 tk.Button(button_frame, text="🔍",
           command=lambda: show_frame(search_frame),
@@ -273,7 +394,16 @@ style = ttk.Style()
 style.theme_use('clam')
 style.configure("TProgressbar", thickness=12, troughcolor="#1a2e45", background="#3ca3ff", bordercolor="#0b1a2f",
                 relief="flat")
-progress_bar.pack(padx=20, pady=(0, 10), fill="x")
+progress_bar.pack(padx=20, pady=(0, 5), fill="x")
+
+progress_frame = tk.Frame(main_frame, bg="#0b1a2f")
+progress_frame.pack(padx=20, pady=(0, 10), fill="x")
+
+progress_label = tk.Label(progress_frame, text="0%", bg="#0b1a2f", fg="#ffffff", font=("Segoe UI", 10))
+progress_label.pack(side=tk.LEFT)
+
+speed_label = tk.Label(progress_frame, text="Speed: -", bg="#0b1a2f", fg="#ffffff", font=("Segoe UI", 10))
+speed_label.pack(side=tk.RIGHT)
 
 complete_label = tk.Label(main_frame, text="✅ Download complete!", bg="#0b1a2f", fg="#8ef58e",
                           font=("Segoe UI", 12, "bold"))
@@ -331,6 +461,14 @@ audio_quality_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.audio_qua
 audio_quality_menu.config(bg="#1b2b45", fg="white", relief="flat", highlightthickness=0)
 audio_quality_menu['menu'].config(bg="#1b2b45", fg="white")
 add_advanced_row(advanced_form_frame, "🔊 Audio quality (kbps):", audio_quality_menu)
+
+advanced_frame.time_start_var = tk.StringVar()
+time_start_entry = tk.Entry(advanced_form_frame, textvariable=advanced_frame.time_start_var, **entry_style)
+add_advanced_row(advanced_form_frame, "⏱ Start time (HH:MM:SS):", time_start_entry)
+
+advanced_frame.time_end_var = tk.StringVar()
+time_end_entry = tk.Entry(advanced_form_frame, textvariable=advanced_frame.time_end_var, **entry_style)
+add_advanced_row(advanced_form_frame, "⏱ End time (HH:MM:SS):", time_end_entry)
 
 tk.Button(advanced_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
           bg="#1e3c60", fg="white", relief="flat",
