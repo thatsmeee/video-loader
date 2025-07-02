@@ -7,6 +7,7 @@ import requests
 from tkinter import ttk
 import sys
 import platform
+import json
 
 if getattr(sys, 'frozen', False):
     ffmpeg_dir = os.path.join(sys._MEIPASS, 'ffmpeg')
@@ -35,14 +36,18 @@ class YTDLPLogger:
     def error(self, msg):
         self.log_callback("❌ " + msg)
 
-def download_thread(url, media_type, quality, codec, save_path, threads, log_callback, progress_callback, done_callback):
+def download_thread(url, media_type, quality, codec, save_path, threads, log_callback,
+                    progress_callback, done_callback, advanced_options=None):
     try:
+        if not advanced_options:
+            advanced_options = {}
+
         if media_type in ['mp3', 'ogg', 'wav', 'm4a']:
             ydl_format = 'bestaudio'
             postprocessors = [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': media_type,
-                'preferredquality': '192',
+                'preferredquality': advanced_options.get('audio_quality', '192'),
             }]
         elif media_type in ['mp4', 'webm', 'mkv']:
             if quality == 'best':
@@ -56,47 +61,58 @@ def download_thread(url, media_type, quality, codec, save_path, threads, log_cal
                 'preferedformat': media_type,
             }]
         else:
-            log_callback(f"Неподдерживаемый формат: {media_type}")
+            log_callback(f"Unsupported format: {media_type}")
             return
 
         ydl_opts = {
             'format': ydl_format,
             'outtmpl': os.path.join(save_path, '%(title)s.%(ext)s'),
-            'noplaylist': True,
+            'noplaylist': not advanced_options.get('playlist', False),
             'postprocessors': postprocessors,
             'quiet': True,
             'logger': YTDLPLogger(log_callback),
-            'progress_hooks': [lambda d: progress_callback(d)]
+            'progress_hooks': [lambda d: progress_callback(d)],
+            'postprocessor_args': ['-threads', str(threads)]
         }
 
+        if advanced_options.get('subtitles'):
+            ydl_opts['writesubtitles'] = True
+            ydl_opts['subtitlesformat'] = advanced_options.get('subtitle_format', 'srt')
+            ydl_opts['subtitleslangs'] = ['all']
+
+        if advanced_options.get('metadata'):
+            ydl_opts['writethumbnail'] = True
+            ydl_opts['writeinfojson'] = True
+            ydl_opts['writedescription'] = True
+            ydl_opts['writeannotations'] = True
+            ydl_opts['writeautomaticsub'] = True
+
         if codec:
-            ydl_opts['postprocessor_args'] = [
-                '-c:a' if media_type in ['mp3', 'ogg', 'wav', 'm4a'] else '-c:v', codec,
-                '-threads', str(threads)
-            ]
-        else:
-            ydl_opts['postprocessor_args'] = ['-threads', str(threads)]
+            if media_type in ['mp3', 'ogg', 'wav', 'm4a']:
+                ydl_opts['postprocessor_args'].extend(['-c:a', codec])
+            else:
+                ydl_opts['postprocessor_args'].extend(['-c:v', codec])
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
         done_callback()
-        log_callback("✅ Загрузка завершена!")
+        log_callback("✅ Download complete!")
 
     except Exception as e:
-        log_callback(f"❌ Ошибка: {e}")
+        log_callback(f"❌ Error: {e}")
 
 root = tk.Tk()
-root.title("")
+root.title("Enhanced YouTube Downloader")
 script_dir = os.path.dirname(os.path.abspath(__file__))
 icon_path = os.path.join(script_dir, "footage.ico")
 if os.path.exists(icon_path):
     try:
         root.iconbitmap(icon_path)
     except Exception as e:
-        print(f"⚠️ Не удалось установить иконку: {e}")
+        print(f"⚠️ Failed to set icon: {e}")
 
-root.geometry("700x600")
+root.geometry("700x660")
 root.configure(bg="#0b1a2f")
 root.resizable(False, False)
 
@@ -104,8 +120,9 @@ save_path = tk.StringVar(value=os.getcwd())
 
 main_frame = tk.Frame(root, bg="#0b1a2f")
 search_frame = tk.Frame(root, bg="#0b1a2f")
+advanced_frame = tk.Frame(root, bg="#0b1a2f")
 
-for frame in (main_frame, search_frame):
+for frame in (main_frame, search_frame, advanced_frame):
     frame.place(relwidth=1, relheight=1)
 
 def show_frame(f):
@@ -144,8 +161,20 @@ def start_download():
     folder = save_path.get()
     threads = threads_slider.get()
 
-    if not url or not media_type or not quality or not folder:
-        messagebox.showerror("Ошибка", "Заполни все поля и выбери папку.")
+    advanced_options = {}
+    if hasattr(advanced_frame, 'playlist_var'):
+        advanced_options['playlist'] = advanced_frame.playlist_var.get()
+    if hasattr(advanced_frame, 'subtitles_var'):
+        advanced_options['subtitles'] = advanced_frame.subtitles_var.get()
+    if hasattr(advanced_frame, 'subtitle_format_var'):
+        advanced_options['subtitle_format'] = advanced_frame.subtitle_format_var.get()
+    if hasattr(advanced_frame, 'metadata_var'):
+        advanced_options['metadata'] = advanced_frame.metadata_var.get()
+    if hasattr(advanced_frame, 'audio_quality_var'):
+        advanced_options['audio_quality'] = advanced_frame.audio_quality_var.get()
+
+    if not url or not media_type or not folder:
+        messagebox.showerror("Error", "Please fill all required fields and select a folder.")
         return
 
     output_text.config(state=tk.NORMAL)
@@ -153,15 +182,28 @@ def start_download():
     output_text.config(state=tk.DISABLED)
     progress_var.set(0)
 
-    threading.Thread(target=download_thread, args=(url, media_type, quality, codec, folder,
-                                                   threads, log_to_output, update_progress, on_download_complete)).start()
+    threading.Thread(
+        target=download_thread,
+        args=(url, media_type, quality, codec, folder, threads, log_to_output,
+              update_progress, on_download_complete, advanced_options)
+    ).start()
 
 label_style = {"bg": "#0b1a2f", "fg": "#ffffff", "font": ("Segoe UI", 10)}
-entry_style = {"bg": "#1b2b45", "fg": "#ffffff", "insertbackground": "white", "relief": "flat", "font": ("Segoe UI", 10)}
+entry_style = {"bg": "#1b2b45", "fg": "#ffffff", "insertbackground": "white", "relief": "flat",
+               "font": ("Segoe UI", 10)}
 
-tk.Button(main_frame, text="Проверить доступна ли информация с сайта к скачиванию", command=lambda: show_frame(search_frame),
-          bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 9))\
-    .pack(padx=20, pady=15, fill="x", expand=True)
+button_frame = tk.Frame(main_frame, bg="#0b1a2f")
+button_frame.pack(padx=20, pady=(15, 10), fill="x", expand=True)
+
+tk.Button(button_frame, text="⚙️ Advanced options",
+          command=lambda: show_frame(advanced_frame),
+          bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 11)
+         ).pack(side=tk.LEFT, expand=True, fill="x")
+
+tk.Button(button_frame, text="🔍",
+          command=lambda: show_frame(search_frame),
+          bg="#1e3c60", fg="white", relief="flat", font=("Segoe UI", 11),
+          width=3).pack(side=tk.LEFT, padx=(10, 0))
 
 form_frame = tk.Frame(main_frame, bg="#0b1a2f")
 form_frame.pack(padx=20, pady=10, anchor="w", fill="x")
@@ -172,30 +214,31 @@ def add_form_row(master, label_text, widget):
     widget.grid(row=add_form_row.row, column=1, sticky="ew", pady=5)
     master.grid_columnconfigure(1, weight=1)
     add_form_row.row += 1
+
 add_form_row.row = 0
 
 url_entry = tk.Entry(form_frame, **entry_style)
-add_form_row(form_frame, "🔗 Ссылка на видео файл:", url_entry)
+add_form_row(form_frame, "🔗 Video URL:", url_entry)
 
 format_var = tk.StringVar(value="mp4")
 format_entry = tk.Entry(form_frame, textvariable=format_var, **entry_style)
-add_form_row(form_frame, "🎞 Формат (mp3, mp4, ogg т.д.):", format_entry)
+add_form_row(form_frame, "🎞 Format (mp3, mp4, ogg etc.):", format_entry)
 
 quality_entry = tk.Entry(form_frame, **entry_style)
 quality_entry.insert(0, "best")
-add_form_row(form_frame, "🧩 Качество (worst/best, 360/720/1800 т.д.):", quality_entry)
+add_form_row(form_frame, "🧩 Quality (worst/best, 360/720/1800 etc.):", quality_entry)
 
 codec_entry = tk.Entry(form_frame, **entry_style)
-add_form_row(form_frame, "📦 Кодек (opus, vp9 и т.д.) (не обязательно):", codec_entry)
+add_form_row(form_frame, "📦 Codec (opus, vp9 etc.) (optional):", codec_entry)
 
 dir_frame = tk.Frame(form_frame, bg="#0b1a2f")
 dir_entry = tk.Entry(dir_frame, textvariable=save_path, **entry_style)
 dir_entry.pack(side=tk.LEFT, expand=True, fill="x", padx=(0, 5))
 tk.Button(dir_frame, text="📁", command=choose_folder, bg="#1e3c60", fg="white", relief="flat").pack(side=tk.LEFT)
-add_form_row(form_frame, "💿 Директория сохранения:", dir_frame)
+add_form_row(form_frame, "💿 Save directory:", dir_frame)
 
 threads_frame = tk.Frame(form_frame, bg="#0b1a2f")
-threads_label = tk.Label(threads_frame, text="🎚 Количество потоков FFmpeg:", **label_style)
+threads_label = tk.Label(threads_frame, text="🎚 FFmpeg threads:", **label_style)
 threads_label.pack(side=tk.LEFT, padx=(0, 10))
 
 threads_slider = tk.Scale(
@@ -214,12 +257,13 @@ threads_slider.set(os.cpu_count() or 4)
 threads_slider.pack(side=tk.LEFT, expand=True, fill="x")
 add_form_row(form_frame, "", threads_frame)
 
-tk.Button(main_frame, text="📌 Скачать", command=start_download, bg="#1e6aa6", fg="white",
-          font=("Segoe UI", 11, "bold"), relief="flat", padx=10, pady=5)\
+tk.Button(main_frame, text="📌 Download", command=start_download, bg="#1e6aa6", fg="white",
+          font=("Segoe UI", 11, "bold"), relief="flat", padx=10, pady=5) \
     .pack(padx=20, pady=15, fill="x", expand=True)
 
-tk.Label(main_frame, text="📜 Лог процесса:", **label_style).pack(anchor="w", padx=20, pady=(10, 0))
-output_text = tk.Text(main_frame, height=10, bg="#11213a", fg="#cceeff", relief="flat", font=("Consolas", 9), wrap="word")
+tk.Label(main_frame, text="📜 Process log:", **label_style).pack(anchor="w", padx=20, pady=(10, 0))
+output_text = tk.Text(main_frame, height=10, bg="#11213a", fg="#cceeff", relief="flat", font=("Consolas", 9),
+                      wrap="word")
 output_text.config(state=tk.DISABLED)
 output_text.pack(padx=20, pady=(5, 10), fill="both", expand=True)
 
@@ -227,10 +271,70 @@ progress_var = tk.IntVar()
 progress_bar = ttk.Progressbar(main_frame, variable=progress_var, maximum=100)
 style = ttk.Style()
 style.theme_use('clam')
-style.configure("TProgressbar", thickness=12, troughcolor="#1a2e45", background="#3ca3ff", bordercolor="#0b1a2f", relief="flat")
+style.configure("TProgressbar", thickness=12, troughcolor="#1a2e45", background="#3ca3ff", bordercolor="#0b1a2f",
+                relief="flat")
 progress_bar.pack(padx=20, pady=(0, 10), fill="x")
 
-complete_label = tk.Label(main_frame, text="✅ Загрузка завершена!", bg="#0b1a2f", fg="#8ef58e", font=("Segoe UI", 12, "bold"))
+complete_label = tk.Label(main_frame, text="✅ Download complete!", bg="#0b1a2f", fg="#8ef58e",
+                          font=("Segoe UI", 12, "bold"))
+
+advanced_frame_inner = tk.Frame(advanced_frame, bg="#0b1a2f")
+advanced_frame_inner.place(relwidth=1, relheight=1)
+
+tk.Label(
+    advanced_frame_inner,
+    text="⚙️ Advanced Options",
+    bg="#0b1a2f",
+    fg="white",
+    relief="flat",
+    font=("Segoe UI", 12, "bold"),
+    anchor="w",
+    justify="left"
+).pack(padx=30, pady=(20, 10), fill="x")
+
+advanced_form_frame = tk.Frame(advanced_frame_inner, bg="#0b1a2f")
+advanced_form_frame.pack(padx=20, pady=10, anchor="w", fill="x")
+
+def add_advanced_row(master, label_text, widget):
+    label = tk.Label(master, text=label_text, **label_style)
+    label.grid(row=add_advanced_row.row, column=0, sticky="w", padx=(0, 10), pady=5)
+    widget.grid(row=add_advanced_row.row, column=1, sticky="ew", pady=5)
+    master.grid_columnconfigure(1, weight=1)
+    add_advanced_row.row += 1
+
+add_advanced_row.row = 0
+
+advanced_frame.playlist_var = tk.BooleanVar()
+playlist_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.playlist_var, bg="#0b1a2f",
+                                activebackground="#0b1a2f")
+add_advanced_row(advanced_form_frame, "📋 Download entire playlist:", playlist_check)
+
+advanced_frame.subtitles_var = tk.BooleanVar()
+subtitles_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.subtitles_var, bg="#0b1a2f",
+                                 activebackground="#0b1a2f")
+add_advanced_row(advanced_form_frame, "📝 Download subtitles:", subtitles_check)
+
+advanced_frame.subtitle_format_var = tk.StringVar(value="srt")
+subtitle_format_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.subtitle_format_var, "srt", "vtt", "ass",
+                                     "lrc")
+subtitle_format_menu.config(bg="#1b2b45", fg="white", relief="flat", highlightthickness=0)
+subtitle_format_menu['menu'].config(bg="#1b2b45", fg="white")
+add_advanced_row(advanced_form_frame, "📄 Subtitle format:", subtitle_format_menu)
+
+advanced_frame.metadata_var = tk.BooleanVar()
+metadata_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.metadata_var, bg="#0b1a2f",
+                                activebackground="#0b1a2f")
+add_advanced_row(advanced_form_frame, "📊 Download metadata (description, tags, etc.):", metadata_check)
+
+advanced_frame.audio_quality_var = tk.StringVar(value="192")
+audio_quality_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.audio_quality_var, "128", "192", "256", "320")
+audio_quality_menu.config(bg="#1b2b45", fg="white", relief="flat", highlightthickness=0)
+audio_quality_menu['menu'].config(bg="#1b2b45", fg="white")
+add_advanced_row(advanced_form_frame, "🔊 Audio quality (kbps):", audio_quality_menu)
+
+tk.Button(advanced_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+          bg="#1e3c60", fg="white", relief="flat",
+          font=("Segoe UI", 10)).pack(padx=30, pady=20, fill="x")
 
 search_input = tk.StringVar()
 search_results = tk.StringVar()
@@ -242,17 +346,17 @@ def search_sites():
         lines = response.text.splitlines()
         query = search_input.get().lower()
         matches = [line for line in lines if query in line.lower()]
-        result_text = "\n".join(matches) if matches else "Ничего не найдено."
+        result_text = "\n".join(matches) if matches else "No results found."
         search_results.set(result_text)
     except Exception as e:
-        search_results.set(f"Ошибка: {e}")
+        search_results.set(f"Error: {e}")
 
 search_frame_inner = tk.Frame(search_frame, bg="#0b1a2f")
 search_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     search_frame_inner,
-    text="Поиск поддерживаемых сайтов",
+    text="Search supported websites",
     bg="#0b1a2f",
     fg="white",
     relief="flat",
@@ -264,18 +368,18 @@ tk.Label(
 search_entry = tk.Entry(search_frame_inner, textvariable=search_input, **entry_style)
 search_entry.pack(padx=30, pady=(0, 10), fill="x")
 
-tk.Button(search_frame_inner, text="🔎 Найти", command=search_sites,
+tk.Button(search_frame_inner, text="🔎 Search", command=search_sites,
           bg="#1e6aa6", fg="white", relief="flat",
           font=("Segoe UI", 10, "bold")).pack(padx=30, pady=(0, 20), fill="x")
 
-tk.Label(search_frame_inner, text="📄 Результаты:", **label_style).pack(anchor="w", padx=30, pady=(0, 5))
+tk.Label(search_frame_inner, text="📄 Results:", **label_style).pack(anchor="w", padx=30, pady=(0, 5))
 
 search_output = tk.Message(search_frame_inner, textvariable=search_results,
                            bg="#11213a", fg="#cceeff", width=640,
                            font=("Consolas", 9))
 search_output.pack(padx=30, pady=(0, 20), fill="both", expand=True)
 
-tk.Button(search_frame_inner, text="📦 На главную", command=lambda: show_frame(main_frame),
+tk.Button(search_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
           bg="#1e3c60", fg="white", relief="flat",
           font=("Segoe UI", 10)).pack(padx=30, pady=(0, 30), fill="x")
 
