@@ -26,6 +26,14 @@ import shutil
 import hashlib
 import queue
 import ffmpeg
+import gettext
+import locale
+
+language = 'ru'
+
+lang = gettext.translation('app', localedir='locales', languages=[language], fallback=True)
+lang.install()
+_ = lang.gettext
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS
@@ -1406,19 +1414,19 @@ add_advanced_row.row = 0
 advanced_frame.playlist_var = tk.BooleanVar()
 playlist_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.playlist_var, bg="#0b1a2f",
                                 activebackground="#0b1a2f")
-add_advanced_row(advanced_form_frame, "📋 Download entire playlist:", playlist_check)
+add_advanced_row(advanced_form_frame, _("📋 Download entire playlist:"), playlist_check)
 
 advanced_frame.subtitles_var = tk.BooleanVar()
 subtitles_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.subtitles_var, bg="#0b1a2f",
                                  activebackground="#0b1a2f")
-add_advanced_row(advanced_form_frame, "📝 Download subtitles:", subtitles_check)
+add_advanced_row(advanced_form_frame, _("📝 Download subtitles:"), subtitles_check)
 
 advanced_frame.subtitle_format_var = tk.StringVar(value="srt")
 subtitle_format_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.subtitle_format_var, "srt", "vtt", "ass",
                                      "lrc")
 subtitle_format_menu.config(bg="#1b2b45", fg="white", relief="flat", highlightthickness=0)
 subtitle_format_menu['menu'].config(bg="#1b2b45", fg="white")
-add_advanced_row(advanced_form_frame, "📄 Subtitle format:", subtitle_format_menu)
+add_advanced_row(advanced_form_frame, _("📄 Subtitle format:"), subtitle_format_menu)
 
 advanced_frame.metadata_var = tk.BooleanVar()
 metadata_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.metadata_var, bg="#0b1a2f",

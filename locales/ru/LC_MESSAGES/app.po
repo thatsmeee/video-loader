@@ -1,0 +1,310 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: VideoLoader 1.5.1\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ru\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 "
+"&& (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "🔹 Main features:"
+msgstr "🔹 Основные функции:"
+
+msgid "1. Paste the video URL in the \"Video URL\" field"
+msgstr "1. Вставьте URL видео в поле \"Video URL\""
+
+msgid "2. Select the format (mp4, mp3, etc.)"
+msgstr "2. Выберите формат (mp4, mp3 и др.)"
+
+msgid "3. Specify the quality (for example: best, 720, 480)"
+msgstr "3. Укажите качество (например: best, 720, 480)"
+
+msgid "4. Select the folder to save"
+msgstr "4. Выберите папку для сохранения"
+
+msgid "5. Click \"Download\""
+msgstr "5. Нажмите \"Download\""
+
+msgid "🔹 Additional features:"
+msgstr "🔹 Дополнительные функции:"
+
+msgid "- Convert video to other formats"
+msgstr "- Конвертация видео в другие форматы"
+
+msgid "- Trim video by time"
+msgstr "- Обрезка видео по времени"
+
+msgid "- Extract audio from video"
+msgstr "- Извлечение аудио из видео"
+
+msgid "- Merge multiple videos"
+msgstr "- Объединение нескольких видео"
+
+msgid "- Download queue with control (pause/cancel)"
+msgstr "- Очередь загрузок с управлением (пауза/отмена)"
+
+msgid "- Optimize CPU/GPU usage during conversion"
+msgstr "- Оптимизация использования CPU/GPU при конвертации"
+
+msgid "🔹 Hot keys:"
+msgstr "🔹 Горячие клавиши:"
+
+msgid "- Ctrl+V: Paste URL from clipboard"
+msgstr "- Ctrl+V: Вставить URL из буфера обмена"
+
+msgid "- F1: Open this help"
+msgstr "- F1: Открыть эту справку"
+
+msgid "- Ctrl+Q: Quickly view videos"
+msgstr "- Ctrl+Q: Быстрый просмотр видео"
+
+msgid "🔹 Supported sites:"
+msgstr "🔹 Поддерживаемые сайты:"
+
+msgid "- YouTube, Vimeo, Dailymotion"
+msgstr "- YouTube, Vimeo, Dailymotion"
+
+msgid "- Facebook, Twitter, Instagram"
+msgstr "- Facebook, Twitter, Instagram"
+
+msgid "- And many more (see Search tab)"
+msgstr "- И многие другие (см. вкладку Поиск)"
+
+msgid "For more help visit:"
+msgstr "Для дополнительной помощи посетите:"
+
+msgid "https://github.com/thatsmeee/video-loader"
+msgstr "https://github.com/thatsmeee/video-loader"
+
+msgid "Usage manual"
+msgstr "Руководство пользователя"
+
+msgid "📚 Enhanced YouTube Downloader - Help"
+msgstr "📚 Enhanced YouTube Downloader - Справка"
+
+msgid "🔧 Advanced"
+msgstr "🔧 Дополнительно"
+
+msgid "🔍 Search"
+msgstr "🔍 Поиск"
+
+msgid "🎬 Tools"
+msgstr "🎬 Инструменты"
+
+msgid "⚙️ Security"
+msgstr "⚙️ Безопасность"
+
+msgid "⏳ History"
+msgstr "⏳ История"
+
+msgid "📜 Queue"
+msgstr "📜 Очередь"
+
+msgid "ℹ️"
+msgstr "ℹ️"
+
+msgid "🆘 Справка (F1)"
+msgstr "🆘 Справка (F1)"
+
+msgid "🔗 Video URL:"
+msgstr "🔗 Video URL:"
+
+msgid "🎞 Format (mp3, mp4, ogg etc.):"
+msgstr "🎞 Формат (mp3, mp4, ogg и др.):"
+
+msgid "🧩 Quality (worst/best, 360/720/1800 etc.):"
+msgstr "🧩 Качество (худшее/лучшее, 360/720/1800 и др.):"
+
+msgid "📦 Codec (opus, vp9 etc.) (optional):"
+msgstr "📦 Кодек (opus, vp9 и др.) (необязательно):"
+
+msgid "💿 Save directory:"
+msgstr "💿 Папка для сохранения:"
+
+msgid "🎚 FFmpeg threads:"
+msgstr "🎚 Потоки FFmpeg:"
+
+msgid "📌 Download"
+msgstr "📌 Скачать"
+
+msgid "➕ Add to Queue"
+msgstr "➕ Добавить в очередь"
+
+msgid "📜 Process log:"
+msgstr "📜 Журнал процессов:"
+
+msgid "✅ Download complete!"
+msgstr "✅ Загрузка завершена!"
+
+msgid "🔧 Advanced Options"
+msgstr "🔧 Дополнительные настройки"
+
+msgid "📋 Download entire playlist:"
+msgstr "📋 Скачать весь плейлист:"
+
+msgid "📝 Download subtitles:"
+msgstr "📝 Скачать субтитры:"
+
+msgid "📄 Subtitle format:"
+msgstr "📄 Формат субтитров:"
+
+msgid "📊 Download metadata (description, tags, etc.):"
+msgstr "📊 Скачать метаданные (описание, теги и др.):"
+
+msgid "🔊 Audio quality (kbps):"
+msgstr "🔊 Качество аудио (кбит/с):"
+
+msgid "⏱️ Start time (HH:MM:SS):"
+msgstr "⏱️ Время начала (ЧЧ:ММ:СС):"
+
+msgid "⏱️ End time (HH:MM:SS):"
+msgstr "⏱️ Время окончания (ЧЧ:ММ:СС):"
+
+msgid "📝 Filename template:"
+msgstr "📝 Шаблон имени файла:"
+
+msgid "⚡️ Hardware acceleration:"
+msgstr "⚡️ Аппаратное ускорение:"
+
+msgid "⬅️ Back to main"
+msgstr "⬅️ Назад в главное меню"
+
+msgid "⚙️ Security Settings"
+msgstr "⚙️ Настройки безопасности"
+
+msgid "🌐 Cookie domain (e.g., youtube.com):"
+msgstr "🌐 Домен cookie (например, youtube.com):"
+
+msgid "🔌 Proxy (e.g., http://user:pass@ip:port):"
+msgstr "🔌 Прокси (например, http://user:pass@ip:port):"
+
+msgid "🍪 Cookies:"
+msgstr "🍪 Cookies:"
+
+msgid "Chrome"
+msgstr "Chrome"
+
+msgid "Firefox"
+msgstr "Firefox"
+
+msgid "Edge"
+msgstr "Edge"
+
+msgid "Opera"
+msgstr "Opera"
+
+msgid "From File"
+msgstr "Из файла"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "📜 Download Queue"
+msgstr "📜 Очередь загрузок"
+
+msgid "▶️ Start"
+msgstr "▶️ Старт"
+
+msgid "⏸️ Pause"
+msgstr "⏸️ Пауза"
+
+msgid "⏹️ Stop"
+msgstr "⏹️ Стоп"
+
+msgid "🗑 Clear"
+msgstr "🗑 Очистить"
+
+msgid "Search supported websites"
+msgstr "Поиск поддерживаемых сайтов"
+
+msgid "🔎 Search"
+msgstr "🔎 Поиск"
+
+msgid "📄 Results:"
+msgstr "📄 Результаты:"
+
+msgid "⏳ Download History"
+msgstr "⏳ История загрузок"
+
+msgid "🔄 Repeat Download"
+msgstr "🔄 Повторить загрузку"
+
+msgid "🗑 Clear History"
+msgstr "🗑 Очистить историю"
+
+msgid "🎬 Tools"
+msgstr "🎬 Инструменты"
+
+msgid "🎞 Media Converter"
+msgstr "🎞 Медиа конвертер"
+
+msgid "✂️ Video trim"
+msgstr "✂️ Обрезка видео"
+
+msgid "🔊 Audio Extractor"
+msgstr "🔊 Извлечение аудио"
+
+msgid "🔀 Merge Videos"
+msgstr "🔀 Объединение видео"
+
+msgid "⬅️ Back"
+msgstr "⬅️ Назад"
+
+msgid "🔊 Audio Extractor"
+msgstr "🔊 Извлечение аудио"
+
+msgid "Output audio format:"
+msgstr "Формат выходного аудио:"
+
+msgid "Audio quality (kbps):"
+msgstr "Качество аудио (кбит/с):"
+
+msgid "🎵 Extract Audio"
+msgstr "🎵 Извлечь аудио"
+
+msgid "🎞 Media Converter"
+msgstr "🎞 Медиа конвертер"
+
+msgid "Enter output format (e.g., mp4, mkv, avi):"
+msgstr "Введите формат вывода (например, mp4, mkv, avi):"
+
+msgid "🔄 Convert video"
+msgstr "🔄 Конвертировать видео"
+
+msgid "✂️ Video trimming"
+msgstr "✂️ Обрезка видео"
+
+msgid "Start time (format HH:MM:SS or seconds):"
+msgstr "Время начала (формат ЧЧ:ММ:СС или секунды):"
+
+msgid "End time (format HH:MM:SS or seconds):"
+msgstr "Время окончания (формат ЧЧ:ММ:СС или секунды):"
+
+msgid "✂️ Trim"
+msgstr "✂️ Обрезать"
+
+msgid "🔀 Video Merger"
+msgstr "🔀 Объединение видео"
+
+msgid "Select multiple video files to merge (same codec recommended):"
+msgstr "Выберите несколько видео для объединения (рекомендуется одинаковый кодек):"
+
+msgid "➕ Add Files"
+msgstr "➕ Добавить файлы"
+
+msgid "➖ Remove"
+msgstr "➖ Удалить"
+
+msgid "🔼 Up"
+msgstr "🔼 Вверх"
+
+msgid "🔽 Down"
+msgstr "🔽 Вниз"
+
+msgid "🗑 Clear"
+msgstr "🗑 Очистить"
+
+msgid "Output format:"
+msgstr "Формат вывода:"
+
+msgid "🔀 Merge Videos"
+msgstr "🔀 Объединение видео"

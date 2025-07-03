@@ -1,0 +1,11 @@
+yt-dlp
+tk
+requests
+packaging
+psutil
+Pillow
+pyperclip
+ffmpeg-python
+babel
+gettext
+browser-cookie3
