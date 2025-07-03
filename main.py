@@ -358,7 +358,7 @@ https://github.com/thatsmeee/video-loader
 
     close_button = tk.Button(
         help_window,
-        text="Закрыть",
+        text="⬅️ Back to main",
         command=help_window.destroy,
         bg="#1e6aa6",
         fg="white",
