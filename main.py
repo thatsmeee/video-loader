@@ -2785,7 +2785,8 @@ tk.Radiobutton(
     variable=theme_var,
     value="dark",
     command=lambda: apply_theme('dark'),
-    **label_style
+    selectcolor="black",
+    **label_style,
 ).pack(side=tk.LEFT, padx=5)
 
 tk.Radiobutton(
@@ -2796,6 +2797,7 @@ tk.Radiobutton(
     command=lambda: apply_theme('light'),
     **label_style
 ).pack(side=tk.LEFT, padx=5)
+
 
 ###### Language
 tk.Label(
