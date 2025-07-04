@@ -43,9 +43,20 @@ if not os.path.isfile(ffmpeg_path):
 
 os.environ['PATH'] = ffmpeg_dir + os.pathsep + os.environ['PATH']
 
-HISTORY_FILE = os.path.join(BASE_DIR, 'download_history.json')
-QUEUE_FILE = os.path.join(BASE_DIR, 'download_queue.json')
-SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
+if getattr(sys, 'frozen', False):
+    if platform.system() == "Windows":
+        app_data_dir = os.path.join(os.getenv('APPDATA'), 'EnhancedYouTubeDownloader')
+    else:
+        app_data_dir = os.path.join(os.path.expanduser('~'), '.EnhancedYouTubeDownloader')
+
+    os.makedirs(app_data_dir, exist_ok=True)
+    HISTORY_FILE = os.path.join(app_data_dir, 'download_history.json')
+    QUEUE_FILE = os.path.join(app_data_dir, 'download_queue.json')
+    SETTINGS_FILE = os.path.join(app_data_dir, 'settings.json')
+else:
+    HISTORY_FILE = os.path.join(BASE_DIR, 'download_history.json')
+    QUEUE_FILE = os.path.join(BASE_DIR, 'download_queue.json')
+    SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
 
 FILENAME_TEMPLATES = [
     "%(title)s.%(ext)s",
@@ -70,7 +81,7 @@ DEFAULT_SETTINGS = {
     'filename_template': '%(title)s.%(ext)s',
     'default_language': 'en'
 }
-    
+
 
 class FFmpegProgressParser:
     def __init__(self, total_duration, progress_callback):
@@ -316,6 +327,7 @@ try:
 except FileNotFoundError:
     _ = lambda s: s
 
+
 def apply_theme_recursively(widget, theme):
     cls = widget.winfo_class()
 
@@ -344,7 +356,39 @@ def apply_theme_recursively(widget, theme):
             "🗑 Clear History": {"bg": "#d94c4c", "fg": "white"},
             "🔄 Repeat Download": {"bg": "#1e6aa6", "fg": "white"},
             "🗑 Clear": {"bg": "#f43535", "fg": "white"},
-            "▶️ Start": {"bg": "#1e6aa6", "fg": "white"}
+            "▶️ Start": {"bg": "#1e6aa6", "fg": "white"},
+            "📌 Скачать": {"bg": "#1e6aa6", "fg": "white"},
+            "🔎 Поиск": {"bg": "#1e6aa6", "fg": "white"},
+            "🎞 Медиа конвертер": {"bg": "#1e6aa6", "fg": "white"},
+            "✂ Видеообрезка": {"bg": "#1e6aa6", "fg": "white"},
+            "🔊 Извлечение аудио": {"bg": "#1e6aa6", "fg": "white"},
+            "🔀 Объединение видео": {"bg": "#1e6aa6", "fg": "white"},
+            "🔄 Конвертировать видео": {"bg": "#1e6aa6", "fg": "white"},
+            "✂️ Обрезка": {"bg": "#1e6aa6", "fg": "white"},
+            "🎵 Извлечь аудио": {"bg": "#1e6aa6", "fg": "white"},
+            "➕ Добавить файлы": {"bg": "#3a3a3a", "fg": "white"},
+            "🗑 Очистить": {"bg": "#d94c4c", "fg": "white"},
+            "Очистить": {"bg": "#d94c4c", "fg": "white"},
+            "🗑 Очистить историю": {"bg": "#d94c4c", "fg": "white"},
+            "🔄 Повторить загрузку": {"bg": "#1e6aa6", "fg": "white"},
+            "🗑 Очистить": {"bg": "#f43535", "fg": "white"},
+            "▶️ Начать": {"bg": "#1e6aa6", "fg": "white"},
+            "📌 Завантажити": {"bg": "#1e6aa6", "fg": "white"},
+            "🔎 Пошук": {"bg": "#1e6aa6", "fg": "white"},
+            "🎞 Медіаконвертер": {"bg": "#1e6aa6", "fg": "white"},
+            "✂ Відеообрізання": {"bg": "#1e6aa6", "fg": "white"},
+            "🔊 Витягти аудіо": {"bg": "#1e6aa6", "fg": "white"},
+            "🔀 Об'єднання відео": {"bg": "#1e6aa6", "fg": "white"},
+            "🔄 Конвертувати відео": {"bg": "#1e6aa6", "fg": "white"},
+            "✂️ Обрізка": {"bg": "#1e6aa6", "fg": "white"},
+            "🎵 Витягти аудіо": {"bg": "#1e6aa6", "fg": "white"},
+            "➕ Додати файли": {"bg": "#3a3a3a", "fg": "white"},
+            "🗑 Очистити": {"bg": "#d94c4c", "fg": "white"},
+            "Очистити": {"bg": "#d94c4c", "fg": "white"},
+            "🗑 Очистити історію": {"bg": "#d94c4c", "fg": "white"},
+            "🔄 Повторити завантаження": {"bg": "#1e6aa6", "fg": "white"},
+            "🗑 Очистити": {"bg": "#f43535", "fg": "white"},
+            "▶️ Почати": {"bg": "#1e6aa6", "fg": "white"}
         }
 
         if text in buttons_with_custom_colors:
@@ -543,12 +587,11 @@ class YTDLPLogger:
         self._lock = threading.Lock()
 
     def debug(self, msg):
-        with self._lock:
-            root.after(0, self.log_callback, msg)
+        pass
 
     def warning(self, msg):
         with self._lock:
-            root.after(0, self.log_callback, f"⚠️ {msg}")
+            root.after(0, self.log_callback, msg)
 
     def error(self, msg):
         with self._lock:
@@ -726,7 +769,6 @@ def download_thread_wrapper(download_queue):
 
             if queue_listbox.size() > 0:
                 root.after(0, lambda: queue_listbox.itemconfig(0, {'bg': '#3ca3ff'}))
-            #show_toast(f"Processing: {url}")
 
             download_thread(
                 url, media_type, quality, codec, save_path, threads,
@@ -1108,6 +1150,9 @@ def update_history_list():
 
 
 def show_toast(message, success=False, error=False, warning=False):
+    if not (success or error):
+        return
+
     toast = tk.Toplevel(root)
     toast.overrideredirect(True)
     toast.geometry("300x60+{}+{}".format(
@@ -1115,7 +1160,7 @@ def show_toast(message, success=False, error=False, warning=False):
         root.winfo_y() + root.winfo_height() - 80
     ))
 
-    bg_color = "#4CAF50" if success else "#F44336" if error else "#FF9800" if warning else "#2196F3"
+    bg_color = "#4CAF50" if success else "#F44336" if error else "#2196F3"
 
     toast_frame = tk.Frame(toast, bg=bg_color)
     toast_frame.pack(fill="both", expand=True)
@@ -1131,7 +1176,6 @@ def show_toast(message, success=False, error=False, warning=False):
     )
     label.pack(pady=10, padx=10)
 
-    # Auto-close after 3 seconds
     toast.after(3000, toast.destroy)
 
 
@@ -1142,7 +1186,7 @@ if not getattr(sys, 'frozen', False) and app_settings.get('auto_update', True):
 root.deiconify()
 root.title("Enhanced YouTube Downloader")
 script_dir = os.path.dirname(os.path.abspath(__file__))
-icon_path = os.path.join(script_dir, "footage.ico")
+icon_path = os.path.join(BASE_DIR, "footage.ico")
 if os.path.exists(icon_path):
     try:
         root.iconbitmap(icon_path)
@@ -1493,9 +1537,6 @@ def start_download():
         messagebox.showerror("Error", "Please fill all required fields and select a folder.")
         return
 
-    #output_text.config(state=tk.NORMAL)
-    #output_text.delete(1.0, tk.END)
-    #output_text.config(state=tk.DISABLED)
     progress_var.set(0)
     speed_label.config(text="Speed: -")
     progress_label.config(text="0%")
@@ -1817,7 +1858,7 @@ proxy_entry = tk.Entry(security_form_frame, textvariable=security_frame.proxy_va
 add_security_row(security_form_frame, _("🔌 Proxy (e.g., http://user:pass@ip:port):"), proxy_entry)
 
 tk.Label(security_form_frame, text=_("🍪 Cookies:"), **label_style).grid(row=add_security_row.row, column=0, sticky="w",
-                                                                     padx=(0, 10), pady=5)
+                                                                        padx=(0, 10), pady=5)
 add_security_row.row += 1
 
 cookies_buttons_frame = tk.Frame(security_form_frame)
@@ -1911,13 +1952,13 @@ queue_clear_button = tk.Button(
 queue_clear_button.pack(side=tk.LEFT, expand=True, fill="x", padx=2)
 queue_clear_button.config(bg="#f43535", fg="white")
 
-
 tk.Button(queue_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat",
           font=("Segoe UI", 10)).pack(padx=28, pady=20, fill="x")
 
 search_input = tk.StringVar()
 search_results = tk.StringVar()
+
 
 def search_sites():
     query = search_input.get().strip()
@@ -2798,14 +2839,12 @@ tk.Radiobutton(
     **label_style
 ).pack(side=tk.LEFT, padx=5)
 
-
-###### Language
 tk.Label(
     settings_form_frame,
     text=_("🌍 Language Selection"),
     font=("Segoe UI", 12, "bold"),
     anchor="w", justify="left"
-    ).grid(row=add_settings_row.row, column=0, sticky="w", padx=5, pady=(20, 10))
+).grid(row=add_settings_row.row, column=0, sticky="w", padx=5, pady=(20, 10))
 
 add_settings_row.row += 1
 
@@ -2821,11 +2860,13 @@ available_languages = {
     "ru": "Russian"
 }
 
+
 def change_language(lang_code):
     app_settings.set("default_language", lang_code)
     show_toast("Language changed to" + f": {available_languages[lang_code]}")
     messagebox.showinfo("Info", "Please restart the application to apply the language.")
-    
+
+
 lang_menu = tk.OptionMenu(
     settings_form_frame,
     lang_var,
@@ -2836,8 +2877,6 @@ lang_menu = tk.OptionMenu(
 )
 lang_menu.grid(row=add_settings_row.row, column=1, sticky="w", pady=5)
 add_settings_row.row += 1
-
-
 
 filename_template_menu.config(highlightthickness=0)
 filename_template_menu.grid(row=add_settings_row.row, column=1, sticky="ew", pady=5)
