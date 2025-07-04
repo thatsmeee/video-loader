@@ -1,0 +1,14 @@
+{
+  "theme": "dark",
+  "auto_update": true,
+  "check_space": true,
+  "min_space_gb": 1,
+  "default_format": "mp4",
+  "default_quality": "best",
+  "default_save_path": "C:\\Users\\maxim\\OneDrive\\\u0420\u0430\u0431\u043e\u0447\u0438\u0439 \u0441\u0442\u043e\u043b\\video-loader",
+  "default_threads": 8,
+  "notifications": true,
+  "hardware_accel": "auto",
+  "filename_template": "%(title)s.%(ext)s",
+  "default_language": "en"
+}

@@ -27,6 +27,7 @@ import hashlib
 import queue
 import ffmpeg
 import re
+import gettext
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS
@@ -66,9 +67,10 @@ DEFAULT_SETTINGS = {
     'default_threads': os.cpu_count() or 4,
     'notifications': True,
     'hardware_accel': 'auto',
-    'filename_template': '%(title)s.%(ext)s'
+    'filename_template': '%(title)s.%(ext)s',
+    'default_language': 'en'
 }
-
+    
 
 class FFmpegProgressParser:
     def __init__(self, total_duration, progress_callback):
@@ -304,6 +306,15 @@ THEMES = {
     }
 }
 
+language = app_settings.get("default_language", "en")
+locales_dir = os.path.join(BASE_DIR, "locales")
+
+try:
+    lang = gettext.translation("messages", locales_dir, languages=[language])
+    lang.install()
+    _ = lang.gettext
+except FileNotFoundError:
+    _ = lambda s: s
 
 def apply_theme_recursively(widget, theme):
     cls = widget.winfo_class()
@@ -1532,28 +1543,28 @@ entry_style = {"insertbackground": "white", "relief": "flat", "font": ("Segoe UI
 button_frame = tk.Frame(main_frame)
 button_frame.pack(padx=28, pady=(15, 10), fill="x", expand=True)
 
-tk.Button(button_frame, text=" 🔧 Advanced ",
+tk.Button(button_frame, text=_("🔧 Advanced"),
           command=lambda: show_frame(advanced_frame),
           relief="flat", font=("Segoe UI", 10)
           ).pack(side=tk.LEFT, expand=False, fill="x")
 
-tk.Button(button_frame, text=" 🔍 Search ",
+tk.Button(button_frame, text=_("🔍 Search"),
           command=lambda: show_frame(search_frame),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=False, padx=(10, 0))
 
-tk.Button(button_frame, text=" 🎬 Tools ", command=lambda: show_frame(tools_frame),
+tk.Button(button_frame, text=_("🎬 Tools"), command=lambda: show_frame(tools_frame),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=False, padx=(10, 0))
 
-tk.Button(button_frame, text=" ⚙️ Security ", command=lambda: show_frame(security_frame),
+tk.Button(button_frame, text=_("⚙️ Security"), command=lambda: show_frame(security_frame),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=False, padx=(10, 0))
 
-tk.Button(button_frame, text=" ⏳ History ", command=lambda: show_frame(history_frame),
+tk.Button(button_frame, text=_("⏳ History"), command=lambda: show_frame(history_frame),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=False, padx=(10, 0))
 
-tk.Button(button_frame, text=" 📜 Queue ", command=lambda: show_frame(queue_frame),
+tk.Button(button_frame, text=_("📜 Queue"), command=lambda: show_frame(queue_frame),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=False, padx=(10, 0))
 
-tk.Button(button_frame, text=" ℹ️ ", command=lambda: show_frame(help_frame),
+tk.Button(button_frame, text=_("ℹ"), command=lambda: show_frame(help_frame),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.RIGHT, expand=False, padx=(10, 0))
 
 form_frame = tk.Frame(main_frame)
@@ -1578,7 +1589,7 @@ url_entry.bind("<Button-3>", lambda e: paste_from_clipboard())
 
 tk.Button(url_frame, text="📋", command=paste_from_clipboard,
           relief="flat", font=("Segoe UI", 8)).pack(side=tk.LEFT, padx=(5, 0))
-add_form_row(form_frame, "🔗 Video URL:", url_frame)
+add_form_row(form_frame, _("🔗 Video URL:"), url_frame)
 
 tk.Button(form_frame, text="Preview", command=preview_video,
           relief="flat").grid(row=add_form_row.row, column=1, sticky="ew", pady=5)
@@ -1586,24 +1597,24 @@ add_form_row.row += 1
 
 format_var = tk.StringVar(value=app_settings.get('default_format', 'mp4'))
 format_entry = tk.Entry(form_frame, textvariable=format_var, **entry_style)
-add_form_row(form_frame, "🎞 Format (mp3, mp4, ogg etc.):", format_entry)
+add_form_row(form_frame, _("🎞 Format (mp3, mp4, ogg etc.):"), format_entry)
 
 quality_entry = tk.Entry(form_frame, **entry_style)
 quality_entry.insert(0, app_settings.get('default_quality', 'best'))
-add_form_row(form_frame, "🧩 Quality (worst/best, 360/720/1800 etc.):", quality_entry)
+add_form_row(form_frame, _("🧩 Quality (worst/best, 360/720/1800 etc.):"), quality_entry)
 
 codec_entry = tk.Entry(form_frame, **entry_style)
-add_form_row(form_frame, "📦 Codec (opus, vp9 etc.) (optional):", codec_entry)
+add_form_row(form_frame, _("📦 Codec (opus, vp9 etc.) (optional):"), codec_entry)
 
 dir_frame = tk.Frame(form_frame)
 dir_entry = tk.Entry(dir_frame, textvariable=save_path, **entry_style)
 dir_entry.pack(side=tk.LEFT, expand=True, fill="x", padx=(0, 5))
 tk.Button(dir_frame, text="📁", font=("Segoe UI", 7, "bold"), command=choose_folder,
           relief="flat").pack(side=tk.LEFT)
-add_form_row(form_frame, "💿 Save directory:", dir_frame)
+add_form_row(form_frame, _("💿 Save directory:"), dir_frame)
 
 threads_frame = tk.Frame(form_frame)
-threads_label = tk.Label(threads_frame, text="🎚 FFmpeg threads:", **label_style)
+threads_label = tk.Label(threads_frame, text=_("🎚 FFmpeg threads:"), **label_style)
 threads_label.pack(side=tk.LEFT, padx=(0, 10))
 
 threads_slider = tk.Scale(
@@ -1623,12 +1634,12 @@ add_form_row(form_frame, "", threads_frame)
 buttons_frame = tk.Frame(main_frame)
 buttons_frame.pack(padx=28, pady=0, fill="x", expand=True)
 
-download_button = tk.Button(buttons_frame, text="📌 Download", command=start_download,
+download_button = tk.Button(buttons_frame, text=_("📌 Download"), command=start_download,
                             font=("Segoe UI", 11, "bold"), relief="flat")
 download_button.pack(side=tk.LEFT, expand=True, fill="x", padx=(0, 5))
 download_button.config(bg="#358ff4", fg="white")
 
-tk.Button(buttons_frame, text="➕ Add to Queue", command=add_to_queue,
+tk.Button(buttons_frame, text=_("➕ Add to Queue"), command=add_to_queue,
           font=("Segoe UI", 11), relief="flat", bg="#3a3a3a").pack(side=tk.LEFT, expand=True, fill="x")
 
 """tk.Label(main_frame, text="📜 Process log:", **label_style).pack(anchor="w", padx=28, pady=(10, 0))
@@ -1681,7 +1692,7 @@ thumbnail_label.pack(padx=28, pady=(0, 0))
 video_info_label = tk.Label(main_frame, text="", font=("Segoe UI", 10), justify="left")
 video_info_label.pack(padx=28, pady=(3, 5), anchor="w")
 
-complete_label = tk.Label(main_frame, text="✅ Download complete!",
+complete_label = tk.Label(main_frame, text=_("✅ Download complete!"),
                           font=("Segoe UI", 12, "bold"))
 
 advanced_frame_inner = tk.Frame(advanced_frame)
@@ -1689,7 +1700,7 @@ advanced_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     advanced_frame_inner,
-    text="🔧 Advanced Options",
+    text=_("🔧 Advanced Options"),
     relief="flat",
     font=("Segoe UI", 12, "bold"),
     anchor="w",
@@ -1713,12 +1724,12 @@ add_advanced_row.row = 0
 advanced_frame.playlist_var = tk.BooleanVar()
 playlist_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.playlist_var,
                                 activebackground="#0b1a2f")
-add_advanced_row(advanced_form_frame, "📋 Download entire playlist:", playlist_check)
+add_advanced_row(advanced_form_frame, _("📋 Download entire playlist:"), playlist_check)
 
 advanced_frame.subtitles_var = tk.BooleanVar()
 subtitles_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.subtitles_var,
                                  activebackground="#0b1a2f")
-add_advanced_row(advanced_form_frame, "📝 Download subtitles:", subtitles_check)
+add_advanced_row(advanced_form_frame, _("📝 Download subtitles:"), subtitles_check)
 
 advanced_frame.subtitle_format_var = tk.StringVar(value="srt")
 subtitle_format_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.subtitle_format_var, "srt", "vtt", "ass",
@@ -1726,26 +1737,26 @@ subtitle_format_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.subtitl
 subtitle_format_menu.config(highlightthickness=0)
 subtitle_format_menu['menu'].config()
 
-add_advanced_row(advanced_form_frame, "📄 Subtitle format:", subtitle_format_menu)
+add_advanced_row(advanced_form_frame, _("📄 Subtitle format:"), subtitle_format_menu)
 
 advanced_frame.metadata_var = tk.BooleanVar()
 metadata_check = tk.Checkbutton(advanced_form_frame, variable=advanced_frame.metadata_var,
                                 activebackground="#0b1a2f")
-add_advanced_row(advanced_form_frame, "📊 Download metadata (description, tags, etc.):", metadata_check)
+add_advanced_row(advanced_form_frame, _("📊 Download metadata (description, tags, etc.):"), metadata_check)
 
 advanced_frame.audio_quality_var = tk.StringVar(value="192")
 audio_quality_menu = tk.OptionMenu(advanced_form_frame, advanced_frame.audio_quality_var, "128", "192", "256", "320")
 audio_quality_menu.config(highlightthickness=0)
 audio_quality_menu['menu'].config()
-add_advanced_row(advanced_form_frame, "🔊 Audio quality (kbps):", audio_quality_menu)
+add_advanced_row(advanced_form_frame, _("🔊 Audio quality (kbps):"), audio_quality_menu)
 
 advanced_frame.time_start_var = tk.StringVar()
 time_start_entry = tk.Entry(advanced_form_frame, textvariable=advanced_frame.time_start_var, **entry_style)
-add_advanced_row(advanced_form_frame, "⏱ Start time (HH:MM:SS):", time_start_entry)
+add_advanced_row(advanced_form_frame, _("⏱ Start time (HH:MM:SS):"), time_start_entry)
 
 advanced_frame.time_end_var = tk.StringVar()
 time_end_entry = tk.Entry(advanced_form_frame, textvariable=advanced_frame.time_end_var, **entry_style)
-add_advanced_row(advanced_form_frame, "⏱ End time (HH:MM:SS):", time_end_entry)
+add_advanced_row(advanced_form_frame, _("⏱ End time (HH:MM:SS):"), time_end_entry)
 
 advanced_frame.filename_template_var = tk.StringVar(value=app_settings.get('filename_template', '%(title)s.%(ext)s'))
 filename_template_menu = tk.OptionMenu(
@@ -1766,9 +1777,9 @@ hw_accel_menu = tk.OptionMenu(
 )
 hw_accel_menu.config(highlightthickness=0)
 hw_accel_menu['menu'].config()
-add_advanced_row(advanced_form_frame, "⚡ Hardware acceleration:", hw_accel_menu)
+add_advanced_row(advanced_form_frame, _("⚡ Hardware acceleration:"), hw_accel_menu)
 
-tk.Button(advanced_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+tk.Button(advanced_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat",
           font=("Segoe UI", 10)).pack(padx=28, pady=20, fill="x")
 
@@ -1777,7 +1788,7 @@ security_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     security_frame_inner,
-    text="⚙️ Security Settings",
+    text=_("⚙️ Security Settings"),
     relief="flat",
     font=("Segoe UI", 12, "bold"),
     anchor="w",
@@ -1801,11 +1812,11 @@ add_security_row.row = 0
 security_frame.proxy_var = tk.StringVar()
 security_frame.cookie_site_var = tk.StringVar(value="youtube.com")
 cookie_site_entry = tk.Entry(security_form_frame, textvariable=security_frame.cookie_site_var, **entry_style)
-add_security_row(security_form_frame, "🌐 Cookie domain (e.g., youtube.com):", cookie_site_entry)
+add_security_row(security_form_frame, _("🌐 Cookie domain (e.g., youtube.com):"), cookie_site_entry)
 proxy_entry = tk.Entry(security_form_frame, textvariable=security_frame.proxy_var, **entry_style)
-add_security_row(security_form_frame, "🔌 Proxy (e.g., http://user:pass@ip:port):", proxy_entry)
+add_security_row(security_form_frame, _("🔌 Proxy (e.g., http://user:pass@ip:port):"), proxy_entry)
 
-tk.Label(security_form_frame, text="🍪 Cookies:", **label_style).grid(row=add_security_row.row, column=0, sticky="w",
+tk.Label(security_form_frame, text=_("🍪 Cookies:"), **label_style).grid(row=add_security_row.row, column=0, sticky="w",
                                                                      padx=(0, 10), pady=5)
 add_security_row.row += 1
 
@@ -1813,31 +1824,31 @@ cookies_buttons_frame = tk.Frame(security_form_frame)
 cookies_buttons_frame.grid(row=add_security_row.row, column=0, columnspan=2, sticky="ew", pady=5)
 add_security_row.row += 1
 
-tk.Button(cookies_buttons_frame, text="Chrome", command=lambda: import_cookies_from_browser("chrome"),
+tk.Button(cookies_buttons_frame, text=_("Chrome"), command=lambda: import_cookies_from_browser("chrome"),
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(cookies_buttons_frame, text="Firefox", command=lambda: import_cookies_from_browser("firefox"),
+tk.Button(cookies_buttons_frame, text=_("Firefox"), command=lambda: import_cookies_from_browser("firefox"),
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(cookies_buttons_frame, text="Edge", command=lambda: import_cookies_from_browser("edge"),
+tk.Button(cookies_buttons_frame, text=_("Edge"), command=lambda: import_cookies_from_browser("edge"),
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(cookies_buttons_frame, text="Opera", command=lambda: import_cookies_from_browser("opera"),
+tk.Button(cookies_buttons_frame, text=_("Opera"), command=lambda: import_cookies_from_browser("opera"),
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(cookies_buttons_frame, text="From File", command=import_cookies_from_file,
+tk.Button(cookies_buttons_frame, text=_("From File"), command=import_cookies_from_file,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(cookies_buttons_frame, text="Clear", command=clear_cookies,
+tk.Button(cookies_buttons_frame, text=_("Clear"), command=clear_cookies,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(security_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+tk.Button(security_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat",
           font=("Segoe UI", 10)).pack(padx=28, pady=20, fill="x")
 
@@ -1846,7 +1857,7 @@ queue_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     queue_frame_inner,
-    text="📜 Download Queue",
+    text=_("📜 Download Queue"),
     relief="flat",
     font=("Segoe UI", 12, "bold"),
     anchor="w",
@@ -1865,7 +1876,7 @@ queue_buttons_frame.pack(padx=28, pady=5, fill="x")
 
 queue_start_button = tk.Button(
     queue_buttons_frame,
-    text="▶ Start",
+    text=_("▶ Start"),
     command=start_queue,
     relief="flat",
     font=("Segoe UI", 10)
@@ -1874,7 +1885,7 @@ queue_start_button.pack(side=tk.LEFT, expand=True, fill="x", padx=2)
 
 queue_pause_button = tk.Button(
     queue_buttons_frame,
-    text="⏸ Pause",
+    text=_("⏸ Pause"),
     command=pause_queue,
     relief="flat",
     font=("Segoe UI", 10)
@@ -1883,7 +1894,7 @@ queue_pause_button.pack(side=tk.LEFT, expand=True, fill="x", padx=2)
 
 queue_stop_button = tk.Button(
     queue_buttons_frame,
-    text="⏹ Stop",
+    text=_("⏹ Stop"),
     command=stop_queue,
     relief="flat",
     font=("Segoe UI", 10)
@@ -1892,7 +1903,7 @@ queue_stop_button.pack(side=tk.LEFT, expand=True, fill="x", padx=2)
 
 queue_clear_button = tk.Button(
     queue_buttons_frame,
-    text="🗑 Clear",
+    text=_("🗑 Clear"),
     command=clear_queue,
     relief="flat",
     font=("Segoe UI", 10)
@@ -1900,13 +1911,13 @@ queue_clear_button = tk.Button(
 queue_clear_button.pack(side=tk.LEFT, expand=True, fill="x", padx=2)
 queue_clear_button.config(bg="#f43535", fg="white")
 
-tk.Button(queue_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+
+tk.Button(queue_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat",
           font=("Segoe UI", 10)).pack(padx=28, pady=20, fill="x")
 
 search_input = tk.StringVar()
 search_results = tk.StringVar()
-
 
 def search_sites():
     query = search_input.get().strip()
@@ -1944,7 +1955,7 @@ search_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     search_frame_inner,
-    text="Search supported websites",
+    text=_("Search supported websites"),
     relief="flat",
     font=("Segoe UI", 10, "bold"),
     anchor="w",
@@ -1954,11 +1965,11 @@ tk.Label(
 search_entry = tk.Entry(search_frame_inner, textvariable=search_input, **entry_style)
 search_entry.pack(padx=28, pady=(0, 10), fill="x")
 
-tk.Button(search_frame_inner, text="🔎 Search", command=search_sites,
+tk.Button(search_frame_inner, text=_("🔎 Search"), command=search_sites,
           relief="flat",
           font=("Segoe UI", 10, "bold")).pack(padx=28, pady=(0, 20), fill="x")
 
-tk.Label(search_frame_inner, text="📄 Results:", **label_style).pack(anchor="w", padx=28, pady=(0, 5))
+tk.Label(search_frame_inner, text=_("📄 Results:"), **label_style).pack(anchor="w", padx=28, pady=(0, 5))
 
 search_output = tk.Label(
     search_frame_inner,
@@ -1971,7 +1982,7 @@ search_output = tk.Label(
 )
 search_output.pack(padx=28, pady=(0, 10), fill="x")
 
-tk.Button(search_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+tk.Button(search_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat",
           font=("Segoe UI", 10)).pack(padx=28, pady=(0, 30), fill="x")
 
@@ -1980,7 +1991,7 @@ history_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     history_frame_inner,
-    text="⏳ Download History",
+    text=_("⏳ Download History"),
     relief="flat",
     font=("Segoe UI", 12, "bold"),
     anchor="w",
@@ -1997,12 +2008,12 @@ history_listbox.pack(padx=28, pady=10, fill="both", expand=True)
 history_buttons_frame = tk.Frame(history_frame_inner)
 history_buttons_frame.pack(padx=28, pady=5, fill="x")
 
-tk.Button(history_buttons_frame, text="🔄 Repeat Download",
+tk.Button(history_buttons_frame, text=_("🔄 Repeat Download"),
           command=lambda: repeat_selected_download(),
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=True, fill="x",
                                                      padx=5)
 
-tk.Button(history_buttons_frame, text="🗑 Clear History",
+tk.Button(history_buttons_frame, text=_("🗑 Clear History"),
           command=clear_history,
           relief="flat", font=("Segoe UI", 10)).pack(side=tk.LEFT, expand=True, fill="x",
                                                      padx=5)
@@ -2020,41 +2031,41 @@ def repeat_selected_download():
     repeat_download(entry)
 
 
-tk.Button(history_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+tk.Button(history_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat",
           font=("Segoe UI", 10)).pack(padx=28, pady=20, fill="x")
 
 tk.Label(tools_frame,
-         text="🎬 Tools",
+         text=_("🎬 Tools"),
          justify="left",
          font=("Segoe UI", 12, "bold"),
          anchor="w"
          ).pack(pady=(30, 20), padx=28, anchor="w")
 
-tk.Button(tools_frame, text="🎞 Media Converter", command=lambda: show_frame(tools_convert_frame),
+tk.Button(tools_frame, text=_("🎞 Media Converter"), command=lambda: show_frame(tools_convert_frame),
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
-tk.Button(tools_frame, text="✂ Video trim", command=lambda: show_frame(tools_trim_frame),
+tk.Button(tools_frame, text=_("✂ Video trim"), command=lambda: show_frame(tools_trim_frame),
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
-tk.Button(tools_frame, text="🔊 Audio Extractor", command=lambda: show_frame(tools_extract_frame),
+tk.Button(tools_frame, text=_("🔊 Audio Extractor"), command=lambda: show_frame(tools_extract_frame),
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
-tk.Button(tools_frame, text="🔀 Merge Videos", command=lambda: show_frame(tools_merge_frame),
+tk.Button(tools_frame, text=_("🔀 Merge Videos"), command=lambda: show_frame(tools_merge_frame),
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
-tk.Button(tools_frame, text="⬅️ Back", command=lambda: show_frame(main_frame),
+tk.Button(tools_frame, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
 tk.Label(tools_extract_frame,
-         text="🔊 Audio Extractor",
+         text=_("🔊 Audio Extractor"),
          font=("Segoe UI", 14, "bold"),
          anchor="w",
          justify="left"
          ).pack(pady=20, padx=28, anchor="w")
 
 tk.Label(tools_extract_frame,
-         text="Output audio format:",
+         text=_("Output audio format:"),
          font=("Segoe UI", 10)
          ).pack(padx=28, anchor="w")
 
@@ -2195,7 +2206,7 @@ def run_audio_extraction():
 
 tk.Button(
     tools_extract_frame,
-    text="🎵 Extract Audio",
+    text=_("🎵 Extract Audio"),
     command=run_audio_extraction,
     relief="flat",
     font=("Segoe UI", 11)
@@ -2203,20 +2214,20 @@ tk.Button(
 
 tk.Button(
     tools_extract_frame,
-    text="⬅️ Back",
+    text=_("⬅ Back"),
     command=lambda: show_frame(tools_frame),
     relief="flat",
     font=("Segoe UI", 10)
 ).pack(padx=28, pady=(30, 0), fill="x")
 
 tk.Label(tools_convert_frame,
-         text="🎞 Media Converter",
+         text=_("🎞 Media Converter"),
          font=("Segoe UI", 12, "bold"),
          anchor="w",
          justify="left"
          ).pack(pady=20, padx=28, anchor="w")
 
-tk.Label(tools_convert_frame, text="Enter output format (e.g., mp4, mkv, avi):",
+tk.Label(tools_convert_frame, text=_("Enter output format (e.g., mp4, mkv, avi):"),
          font=("Segoe UI", 10)).pack(padx=28, anchor="w")
 convert_format_var = tk.StringVar(value="mp4")
 tk.Entry(tools_convert_frame, textvariable=convert_format_var, **entry_style).pack(padx=28, pady=5, fill="x")
@@ -2330,25 +2341,25 @@ def convert_video():
     threading.Thread(target=convert_thread, daemon=True).start()
 
 
-tk.Button(tools_convert_frame, text="🔄 Convert video", command=convert_video,
+tk.Button(tools_convert_frame, text=_("🔄 Convert video"), command=convert_video,
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
-tk.Button(tools_convert_frame, text="⬅️ Back", command=lambda: show_frame(tools_frame),
+tk.Button(tools_convert_frame, text=_("⬅ Back"), command=lambda: show_frame(tools_frame),
           relief="flat", font=("Segoe UI", 10)).pack(padx=28, pady=(30, 0), fill="x")
 
 tk.Label(tools_trim_frame,
-         text="✂ Video trimming",
+         text=_("✂ Video trimming"),
          font=("Segoe UI", 14, "bold"),
          anchor="w",
          justify="left"
          ).pack(pady=20, padx=28, anchor="w")
 
-tk.Label(tools_trim_frame, text="Start time (format HH:MM:SS or seconds):",
+tk.Label(tools_trim_frame, text=_("Start time (format HH:MM:SS or seconds):"),
          font=("Segoe UI", 10)).pack(padx=28, anchor="w")
 trim_start_var = tk.StringVar()
 tk.Entry(tools_trim_frame, textvariable=trim_start_var, **entry_style).pack(padx=28, pady=5, fill="x")
 
-tk.Label(tools_trim_frame, text="End time (format HH:MM:SS or seconds):",
+tk.Label(tools_trim_frame, text=_("End time (format HH:MM:SS or seconds):"),
          font=("Segoe UI", 10)).pack(padx=28, anchor="w")
 trim_end_var = tk.StringVar()
 tk.Entry(tools_trim_frame, textvariable=trim_end_var, **entry_style).pack(padx=28, pady=5, fill="x")
@@ -2450,21 +2461,21 @@ def trim_video():
     threading.Thread(target=trim_thread, daemon=True).start()
 
 
-tk.Button(tools_trim_frame, text="✂️ Trim", command=trim_video,
+tk.Button(tools_trim_frame, text=_("✂ Trim"), command=trim_video,
           relief="flat", font=("Segoe UI", 11)).pack(padx=28, pady=10, fill="x")
 
-tk.Button(tools_trim_frame, text="⬅️ Back", command=lambda: show_frame(tools_frame),
+tk.Button(tools_trim_frame, text=_("⬅️ Back"), command=lambda: show_frame(tools_frame),
           relief="flat", font=("Segoe UI", 10)).pack(padx=28, pady=(30, 0), fill="x")
 
 tk.Label(tools_merge_frame,
-         text="🔀 Video Merger",
+         text=_("🔀 Video Merger"),
          font=("Segoe UI", 14, "bold"),
          anchor="w",
          justify="left"
          ).pack(pady=20, padx=28, anchor="w")
 
 tk.Label(tools_merge_frame,
-         text="Select multiple video files to merge (same codec recommended):",
+         text=_("Select multiple video files to merge (same codec recommended):"),
          font=("Segoe UI", 10)
          ).pack(padx=28, anchor="w")
 
@@ -2527,28 +2538,28 @@ merge_listbox.pack(padx=28, pady=10, fill="x")
 merge_buttons_frame = tk.Frame(tools_merge_frame)
 merge_buttons_frame.pack(padx=28, pady=5, fill="x")
 
-tk.Button(merge_buttons_frame, text="➕ Add Files", command=add_merge_files,
+tk.Button(merge_buttons_frame, text=_("➕ Add Files"), command=add_merge_files,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(merge_buttons_frame, text="➖ Remove", command=remove_selected_file,
+tk.Button(merge_buttons_frame, text=_("➖ Remove"), command=remove_selected_file,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(merge_buttons_frame, text="🔼 Up", command=move_file_up,
+tk.Button(merge_buttons_frame, text=_("🔼 Up"), command=move_file_up,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(merge_buttons_frame, text="🔽 Down", command=move_file_down,
+tk.Button(merge_buttons_frame, text=_("🔽 Down"), command=move_file_down,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
-tk.Button(merge_buttons_frame, text="🗑 Clear", command=clear_merge_list,
+tk.Button(merge_buttons_frame, text=_("🗑 Clear"), command=clear_merge_list,
           relief="flat", font=("Segoe UI", 9)).pack(side=tk.LEFT, expand=True, fill="x",
                                                     padx=2)
 
 tk.Label(tools_merge_frame,
-         text="Output format:",
+         text=_("Output format:"),
          font=("Segoe UI", 10)
          ).pack(padx=28, anchor="w")
 
@@ -2671,7 +2682,7 @@ help_frame_inner.place(relwidth=1, relheight=1)
 
 tk.Label(
     help_frame_inner,
-    text="📚 Usage manual",
+    text=_("📚 Usage manual"),
     relief="flat",
     font=("Segoe UI", 12, "bold"),
     anchor="w",
@@ -2730,7 +2741,7 @@ help_text.config(state=tk.DISABLED)
 
 tk.Button(
     help_frame_inner,
-    text="⬅️ Back to main",
+    text=_("⬅ Back"),
     command=lambda: show_frame(main_frame),
     relief="flat",
     font=("Segoe UI", 10)
@@ -2786,11 +2797,51 @@ tk.Radiobutton(
     **label_style
 ).pack(side=tk.LEFT, padx=5)
 
+###### Language
+tk.Label(
+    settings_form_frame,
+    text=_("🌍 Language Selection"),
+    font=("Segoe UI", 12, "bold"),
+    anchor="w", justify="left"
+    ).grid(row=add_settings_row.row, column=0, sticky="w", padx=5, pady=(20, 10))
+
+add_settings_row.row += 1
+
+tk.Label(settings_form_frame, text="Select language:", font=("Segoe UI", 10)).grid(
+    row=add_settings_row.row, column=0, sticky="w", padx=(5, 10), pady=5
+)
+
+lang_var = tk.StringVar(value=app_settings.get("default_language", "uk"))
+
+available_languages = {
+    "uk": "Ukrainian",
+    "en": "English",
+    "ru": "Russian"
+}
+
+def change_language(lang_code):
+    app_settings.set("default_language", lang_code)
+    show_toast("Language changed to" + f": {available_languages[lang_code]}")
+    messagebox.showinfo("Info", "Please restart the application to apply the language.")
+    
+lang_menu = tk.OptionMenu(
+    settings_form_frame,
+    lang_var,
+    *available_languages.values(),
+    command=lambda selected_name: change_language(
+        [code for code, name in available_languages.items() if name == selected_name][0]
+    )
+)
+lang_menu.grid(row=add_settings_row.row, column=1, sticky="w", pady=5)
+add_settings_row.row += 1
+
+
+
 filename_template_menu.config(highlightthickness=0)
 filename_template_menu.grid(row=add_settings_row.row, column=1, sticky="ew", pady=5)
 add_settings_row.row += 1
 
-tk.Button(settings_frame_inner, text="⬅️ Back to main", command=lambda: show_frame(main_frame),
+tk.Button(settings_frame_inner, text=_("⬅ Back"), command=lambda: show_frame(main_frame),
           relief="flat", font=("Segoe UI", 10)).pack(padx=28, pady=20, fill="x")
 
 update_history_list()
